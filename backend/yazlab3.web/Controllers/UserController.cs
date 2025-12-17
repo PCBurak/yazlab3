@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using yazlab3.web.DTOs;
+using yazlab3.web.Services;
 
 namespace yazlab3.web.Controllers
 {

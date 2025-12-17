@@ -1,6 +1,10 @@
 ﻿using yazlab3.web.Models;
 
-public interface IRoutePlanningService
+namespace yazlab3.web.Services
 {
-    List<Route> PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles);
+    public interface IRoutePlanningService
+    {
+        List<Route> PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles);
+    }
+
 }

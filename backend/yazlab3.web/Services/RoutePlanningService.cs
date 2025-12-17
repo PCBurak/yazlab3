@@ -1,13 +1,18 @@
-﻿using yazlab3.web.Models;
+﻿using yazlab3.web.DTOs;
+using yazlab3.web.Models;
 
-public class RoutePlanningService : IRoutePlanningService
+namespace yazlab3.web.Services
 {
-    public List<Route> PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles)
+    public class RoutePlanningService : IRoutePlanningService
     {
-        // TODO:
-        // 1. Cluster stations
-        // 2. Assign to vehicles
-        // 3. Compute distances
-        return new List<Route>();
+        public List<Route> PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles)
+        {
+            // TODO:
+            // 1. Cluster stations
+            // 2. Assign to vehicles
+            // 3. Compute distances
+            return new List<Route>();
+        }
     }
+
 }

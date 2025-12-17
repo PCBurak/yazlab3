@@ -1,4 +1,10 @@
-﻿public interface ICostService
+﻿using yazlab3.web.Models;
+
+namespace yazlab3.web.Services
 {
-    double CalculateRouteCost(double distanceKm, bool isRented);
+    public interface ICostService
+    {
+        double CalculateRouteCost(double distanceKm, bool isRented);
+    }
+
 }
