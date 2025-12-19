@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using yazlab3.web.Data;
 using yazlab3.web.Services;
+using yazlab3.web.Data;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +14,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
 
+builder.Services.AddScoped<ICostService, CostService>();
+builder.Services.AddScoped<IRoutePlanningService, RoutePlanningService>();
 builder.Services.AddScoped<IUserRouteService, UserRouteService>();
 
 var app = builder.Build();
