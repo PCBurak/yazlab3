@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace yazlab3.web.Migrations
 {
     /// <inheritdoc />
@@ -136,6 +138,71 @@ namespace yazlab3.web.Migrations
                         principalTable: "Stations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.InsertData(
+                table: "Stations",
+                columns: new[] { "Id", "Latitude", "Longitude", "Name" },
+                values: new object[,]
+                {
+                    { 1, 40.715000000000003, 29.927, "Başiskele" },
+                    { 2, 40.819000000000003, 29.373000000000001, "Çayırova" },
+                    { 3, 40.773000000000003, 29.399999999999999, "Darıca" },
+                    { 4, 40.756, 29.829999999999998, "Derince" },
+                    { 5, 40.786999999999999, 29.544, "Dilovası" },
+                    { 6, 40.802, 29.43, "Gebze" },
+                    { 7, 40.716999999999999, 29.818000000000001, "Gölcük" },
+                    { 8, 41.07, 30.149999999999999, "Kandıra" },
+                    { 9, 40.692, 29.616, "Karamürsel" },
+                    { 10, 40.753, 30.015999999999998, "Kartepe" },
+                    { 11, 40.771000000000001, 29.742999999999999, "Körfez" },
+                    { 12, 40.765000000000001, 29.940000000000001, "İzmit" },
+                    { 99, 40.822200000000002, 29.921700000000001, "Umuttepe" }
+                });
+
+            migrationBuilder.InsertData(
+                table: "Vehicles",
+                columns: new[] { "Id", "CapacityKg", "IsRented", "RentalCost" },
+                values: new object[,]
+                {
+                    { 1, 500, false, 0.0 },
+                    { 2, 750, false, 0.0 },
+                    { 3, 1000, false, 0.0 }
+                });
+
+            migrationBuilder.InsertData(
+                table: "StationDistances",
+                columns: new[] { "Id", "DistanceKm", "FromStationId", "ToStationId" },
+                values: new object[,]
+                {
+                    { 1, 10.0, 1, 12 },
+                    { 2, 15.0, 1, 7 },
+                    { 3, 12.0, 1, 10 },
+                    { 4, 15.0, 7, 1 },
+                    { 5, 18.0, 7, 9 },
+                    { 6, 18.0, 9, 7 },
+                    { 7, 10.0, 12, 1 },
+                    { 8, 10.0, 12, 10 },
+                    { 9, 13.0, 12, 4 },
+                    { 10, 40.0, 12, 8 },
+                    { 11, 13.0, 4, 12 },
+                    { 12, 8.0, 4, 11 },
+                    { 13, 8.0, 11, 4 },
+                    { 14, 16.0, 11, 5 },
+                    { 15, 16.0, 5, 11 },
+                    { 16, 10.0, 5, 6 },
+                    { 17, 10.0, 6, 5 },
+                    { 18, 7.0, 6, 2 },
+                    { 19, 6.0, 6, 3 },
+                    { 20, 7.0, 2, 6 },
+                    { 21, 9.0, 2, 3 },
+                    { 22, 6.0, 3, 6 },
+                    { 23, 9.0, 3, 2 },
+                    { 24, 40.0, 8, 12 },
+                    { 25, 10.0, 10, 12 },
+                    { 26, 12.0, 10, 1 },
+                    { 100, 15.0, 99, 12 },
+                    { 101, 15.0, 12, 99 }
                 });
 
             migrationBuilder.CreateIndex(

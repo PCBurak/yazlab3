@@ -1,9 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using yazlab3.web.Data;
 using yazlab3.web.Services;
-using yazlab3.web.Data;
-
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,18 +15,35 @@ builder.Services.AddScoped<ICostService, CostService>();
 builder.Services.AddScoped<IRoutePlanningService, RoutePlanningService>();
 builder.Services.AddScoped<IUserRouteService, UserRouteService>();
 
+// ✅ CORS: allow React dev server (Vite)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReact", policy =>
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+
+    // ✅ Only redirect to HTTPS in Production
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// ✅ CORS must be after routing and before auth/endpoints
+app.UseCors("AllowReact");
+
 app.UseAuthorization();
 
 app.MapControllerRoute(

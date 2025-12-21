@@ -22,12 +22,24 @@ a:hover {
   color: #535bf2;
 }
 
+/* --- FIXED BODY LAYOUT --- */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
+  /* REMOVED: display: flex; -> This was centering everything */
+  /* REMOVED: place-items: center; -> This was squashing it */
   min-height: 100vh;
+  width: 100vw;
+  overflow-x: hidden; /* Prevents accidental horizontal scrollbars */
+}
+
+/* --- NEW: Ensure React Root takes full space --- */
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: block; /* Ensures standard block layout instead of flex */
 }
 
 h1 {

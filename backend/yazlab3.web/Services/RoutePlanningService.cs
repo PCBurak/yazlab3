@@ -11,7 +11,7 @@ namespace yazlab3.web.Services
         private readonly AppDbContext _db;
         private readonly ICostService _costService;
 
-        // StationDistance tablosunu adjacency-list'e çevireceğiz
+        // Graph adjacency list for Dijkstra
         private readonly Dictionary<int, List<Edge>> _adjacency =
             new Dictionary<int, List<Edge>>();
 
@@ -26,7 +26,7 @@ namespace yazlab3.web.Services
             _db = db;
             _costService = costService;
 
-            // StationDistance tablosundan yol grafiğini oluştur
+            // Load the Graph (Edges) from the Database
             var allEdges = _db.StationDistances.ToList();
 
             foreach (var e in allEdges)
@@ -46,24 +46,20 @@ namespace yazlab3.web.Services
         }
 
         // ------------------------------------------------------------
-        // ANA API: CargoRequest listesi -> Route listesi
+        // MAIN API: Plan Routes
         // ------------------------------------------------------------
         public List<Route> PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles)
         {
             if (requests == null || requests.Count == 0)
                 return new List<Route>();
 
-            // 1) Bu isteklerde kullanılan istasyonlar
-            var stationIds = requests
-                .Select(r => r.StationId)
-                .Distinct()
-                .ToList();
-
+            // 1. Fetch relevant stations
+            var stationIds = requests.Select(r => r.StationId).Distinct().ToList();
             var stationMap = _db.Stations
                 .Where(s => stationIds.Contains(s.Id))
                 .ToDictionary(s => s.Id);
 
-            // 2) Aynı istasyondaki kargoları grupla
+            // 2. Group cargo requests by station
             var demands = requests
                 .GroupBy(r => r.StationId)
                 .Select(g => new StationDemandInternal
@@ -73,10 +69,10 @@ namespace yazlab3.web.Services
                     CargoCount = g.Sum(x => x.CargoCount),
                     TotalWeightKg = g.Sum(x => x.TotalWeightKg)
                 })
-                .OrderByDescending(d => d.TotalWeightKg) // ağırdan hafife
+                .OrderByDescending(d => d.TotalWeightKg)
                 .ToList();
 
-            // 3) Temel (kiralı olmayan) araçlar
+            // 3. Get available vehicles
             var availableVehicles = _db.Vehicles
                 .Where(v => !v.IsRented)
                 .OrderBy(v => v.CapacityKg)
@@ -84,40 +80,25 @@ namespace yazlab3.web.Services
 
             var plannedRoutes = new List<PlannedRoute>();
 
-            // 4) Her istasyon talebini sırayla rota/araçlara dağıt
+            // 4. Distribute cargo to vehicles
             foreach (var demand in demands)
             {
-                // Önce mevcut rotalara greedy insertion ile eklemeyi dene
                 if (TryInsertIntoExistingRoute(plannedRoutes, demand))
                     continue;
 
-                // Hiçbir rotaya sığmadı -> yeni araç
                 var vehicle = availableVehicles
                     .FirstOrDefault(v => v.CapacityKg >= demand.TotalWeightKg);
 
                 if (vehicle == null)
                 {
-                    if (!unlimitedVehicles)
-                    {
-                        // sınırlı araç probleminde bu istasyon taşınamayacak
-                        // (istersen burada "Unserved" listesi tutabilirsin)
-                        continue;
-                    }
+                    if (!unlimitedVehicles) continue;
 
-                    // sınırsız araç modunda 500kg kapasiteli kiralık araç
-                    vehicle = new Vehicle
-                    {
-                        CapacityKg = 500,
-                        IsRented = true,
-                        RentalCost = 200
-                    };
-
+                    vehicle = new Vehicle { CapacityKg = 500, IsRented = true, RentalCost = 200 };
                     _db.Vehicles.Add(vehicle);
                     _db.SaveChanges();
                 }
                 else
                 {
-                    // bu base aracı yeni rota açarken tekrar kullanma
                     availableVehicles.Remove(vehicle);
                 }
 
@@ -127,20 +108,31 @@ namespace yazlab3.web.Services
                     UsedCapacityKg = demand.TotalWeightKg,
                     TotalDistanceKm = 0
                 };
-
-                // ilk rota: depo yoksa bile şimdilik sadece istasyon listesi
                 newRoute.Stops.Add(demand);
                 plannedRoutes.Add(newRoute);
             }
 
-            // 5) PlannedRoute -> Route (EF entity) dönüşümü
+            // 5. Convert to Final Route Entities
             var routes = new List<Route>();
+
+            // --- FETCH THE DEPOT (UMUTTEPE) ---
+            // Ensure you have seeded ID 99 as Umuttepe in AppDbContext!
+            var depot = _db.Stations.Find(99);
+            if (depot == null) throw new Exception("Depot (ID 99) not found in DB!");
 
             foreach (var planned in plannedRoutes)
             {
-                // toplam mesafe: depo yoksa istasyonlar arası zincir
                 double totalDist = 0;
 
+                // --- NEW LOGIC: START FROM UMUTTEPE ---
+                // Distance from Depot -> First Stop
+                if (planned.Stops.Count > 0)
+                {
+                    var firstStop = planned.Stops[0].Station;
+                    totalDist += CalculateDistanceKm(depot, firstStop);
+                }
+
+                // Distance between subsequent stops
                 for (int i = 0; i < planned.Stops.Count - 1; i++)
                 {
                     var s1 = planned.Stops[i].Station;
@@ -148,8 +140,7 @@ namespace yazlab3.web.Services
                     totalDist += CalculateDistanceKm(s1, s2);
                 }
 
-                // planned.TotalDistanceKm algoritma sırasında artmış olabilir,
-                // onu da ekleyelim (fazladan bir şey yapmadıysan çoğu zaman 0)
+                // Add any extra distance from greedy insertion
                 totalDist += planned.TotalDistanceKm;
 
                 var route = new Route
@@ -167,7 +158,6 @@ namespace yazlab3.web.Services
                 for (int i = 0; i < planned.Stops.Count; i++)
                 {
                     var stop = planned.Stops[i];
-
                     routeStations.Add(new RouteStation
                     {
                         StationId = stop.StationId,
@@ -175,7 +165,6 @@ namespace yazlab3.web.Services
                         Order = i + 1
                     });
                 }
-
                 route.RouteStations = routeStations;
                 routes.Add(route);
             }
@@ -184,7 +173,7 @@ namespace yazlab3.web.Services
         }
 
         // ------------------------------------------------------------
-        // Mevcut rotaya istasyon ekleme (greedy insertion)
+        // Greedy Insertion
         // ------------------------------------------------------------
         private bool TryInsertIntoExistingRoute(
             List<PlannedRoute> plannedRoutes,
@@ -196,11 +185,9 @@ namespace yazlab3.web.Services
 
             foreach (var route in plannedRoutes)
             {
-                // kapasite kontrolü
                 if (route.UsedCapacityKg + demand.TotalWeightKg > route.Vehicle.CapacityKg)
                     continue;
 
-                // rota içindeki her pozisyona eklemeyi dene
                 for (int i = 0; i <= route.Stops.Count; i++)
                 {
                     Station prev = i == 0 ? null : route.Stops[i - 1].Station;
@@ -227,12 +214,10 @@ namespace yazlab3.web.Services
                 }
             }
 
-            if (bestRoute == null)
-                return false;
+            if (bestRoute == null) return false;
 
             bestRoute.Stops.Insert(bestIndex, demand);
             bestRoute.UsedCapacityKg += demand.TotalWeightKg;
-
             if (bestExtra > 0 && bestExtra < double.MaxValue)
                 bestRoute.TotalDistanceKm += bestExtra;
 
@@ -240,101 +225,180 @@ namespace yazlab3.web.Services
         }
 
         // ------------------------------------------------------------
-        // DİJKSTRA: StationDistance grafiği üzerinde en kısa yol (km)
+        // HYBRID DISTANCE CALCULATION (The Important Fix)
         // ------------------------------------------------------------
 
         private double CalculateDistanceKm(Station a, Station b)
         {
-            if (a == null || b == null)
-                return 0;
+            if (a == null || b == null || a.Id == b.Id) return 0;
 
-            if (a.Id == b.Id)
-                return 0;
+            // 1. Try Dijkstra (Graph) First - PDF Requirement
+            double graphDist = GetShortestPathDistanceKm(a.Id, b.Id);
 
-            return GetShortestPathDistanceKm(a.Id, b.Id);
+            // If Dijkstra found a valid path (> 0), use it.
+            if (graphDist > 0) return graphDist;
+
+            // 2. Fallback to Haversine (Math)
+            // This handles missing database connections or dynamic new stations.
+            return CalculateHaversineDistance(a, b);
         }
 
+        // Standard Haversine Formula (Bird's Eye)
+        private double CalculateHaversineDistance(Station a, Station b)
+        {
+            var R = 6371;
+            var dLat = ToRadians(b.Latitude - a.Latitude);
+            var dLon = ToRadians(b.Longitude - a.Longitude);
+
+            var aVal =
+                Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(a.Latitude)) * Math.Cos(ToRadians(b.Latitude)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(aVal), Math.Sqrt(1 - aVal));
+            return Math.Round(R * c, 2);
+        }
+
+        private double ToRadians(double deg) => deg * (Math.PI / 180);
+
+        // Dijkstra Algorithm (Path Plotting)
         private double GetShortestPathDistanceKm(int fromStationId, int toStationId)
         {
-            // İstasyonların sayısı az olduğu için (Kocaeli ilçeleri),
-            // klasik Dijkstra'yı basit bir "min arama" ile yazmak yeterli.
-
             var dist = new Dictionary<int, double>();
             var visited = new HashSet<int>();
 
-            // Başlangıç mesafeleri
-            foreach (var nodeId in _adjacency.Keys)
-            {
-                dist[nodeId] = double.PositiveInfinity;
-            }
+            foreach (var nodeId in _adjacency.Keys) dist[nodeId] = double.PositiveInfinity;
 
-            if (!dist.ContainsKey(fromStationId))
-                return 0; // grafikte yoksa
+            if (!dist.ContainsKey(fromStationId)) return 0;
 
             dist[fromStationId] = 0;
 
             while (true)
             {
-                // Henüz ziyaret edilmemiş en küçük mesafeli düğümü bul
                 int current = -1;
                 double bestDist = double.PositiveInfinity;
 
                 foreach (var kvp in dist)
                 {
-                    if (visited.Contains(kvp.Key))
-                        continue;
-
-                    if (kvp.Value < bestDist)
+                    if (!visited.Contains(kvp.Key) && kvp.Value < bestDist)
                     {
                         bestDist = kvp.Value;
                         current = kvp.Key;
                     }
                 }
 
-                if (current == -1 || bestDist == double.PositiveInfinity)
-                    break; // ulaşılacak düğüm kalmadı
-
-                if (current == toStationId)
-                    break; // hedefe ulaştık
+                if (current == -1 || bestDist == double.PositiveInfinity) break;
+                if (current == toStationId) return bestDist;
 
                 visited.Add(current);
 
-                if (!_adjacency.TryGetValue(current, out var edges))
-                    continue;
-
-                foreach (var edge in edges)
+                if (_adjacency.TryGetValue(current, out var edges))
                 {
-                    var neighbor = edge.ToStationId;
-                    var newDist = bestDist + edge.DistanceKm;
-
-                    if (!dist.TryGetValue(neighbor, out var oldDist) ||
-                        newDist < oldDist)
+                    foreach (var edge in edges)
                     {
-                        dist[neighbor] = newDist;
+                        var newDist = bestDist + edge.DistanceKm;
+                        if (!dist.TryGetValue(edge.ToStationId, out var oldDist) || newDist < oldDist)
+                        {
+                            dist[edge.ToStationId] = newDist;
+                        }
                     }
                 }
             }
 
-            if (dist.TryGetValue(toStationId, out var finalDist) &&
-                finalDist < double.PositiveInfinity)
-            {
+            if (dist.TryGetValue(toStationId, out var finalDist) && finalDist < double.PositiveInfinity)
                 return finalDist;
-            }
 
-            // Ulaşılamıyorsa 0 döndür (istersen burada büyük bir sayı da verebilirsin)
             return 0;
         }
-    }
 
-    // ------------------------------------------------------------
-    // Algoritma içi yardımcı sınıflar
-    // ------------------------------------------------------------
+        // --- ADD THIS METHOD TO RoutePlanningService CLASS ---
+
+        public List<double[]> GetPathCoordinates(int fromStationId, int toStationId)
+        {
+            // 1. If same station, just return that point
+            if (fromStationId == toStationId)
+            {
+                var s = _db.Stations.Find(fromStationId);
+                return new List<double[]> { new double[] { s.Latitude, s.Longitude } };
+            }
+
+            // 2. Run Dijkstra to find the path of IDs
+            var pathIds = GetShortestPathIds(fromStationId, toStationId);
+
+            // 3. Convert IDs to Coordinates [Lat, Lng]
+            var coords = new List<double[]>();
+            foreach (var id in pathIds)
+            {
+                var s = _db.Stations.Find(id); // Optimizable with dictionary lookup
+                if (s != null)
+                    coords.Add(new double[] { s.Latitude, s.Longitude });
+            }
+            return coords;
+        }
+
+        // --- NEW HELPER: Dijkstra that returns the PATH (List of IDs) ---
+        private List<int> GetShortestPathIds(int startId, int endId)
+        {
+            var dist = new Dictionary<int, double>();
+            var prev = new Dictionary<int, int>(); // Keeps track of "Where did I come from?"
+            var visited = new HashSet<int>();
+            var pq = new SortedSet<(double distance, int id)>(Comparer<(double distance, int id)>.Create((a, b) =>
+                a.distance == b.distance ? a.id.CompareTo(b.id) : a.distance.CompareTo(b.distance)));
+
+            foreach (var node in _adjacency.Keys) dist[node] = double.PositiveInfinity;
+            dist[startId] = 0;
+            pq.Add((0, startId));
+
+            while (pq.Count > 0)
+            {
+                var (d, u) = pq.Min;
+                pq.Remove(pq.Min);
+
+                if (u == endId) break; // Found target
+                if (visited.Contains(u)) continue;
+                visited.Add(u);
+
+                if (_adjacency.TryGetValue(u, out var edges))
+                {
+                    foreach (var edge in edges)
+                    {
+                        if (visited.Contains(edge.ToStationId)) continue;
+
+                        var newDist = dist[u] + edge.DistanceKm;
+                        if (newDist < dist[edge.ToStationId])
+                        {
+                            // Update distance and Predecessor
+                            if (dist[edge.ToStationId] != double.PositiveInfinity)
+                                pq.Remove((dist[edge.ToStationId], edge.ToStationId));
+
+                            dist[edge.ToStationId] = newDist;
+                            prev[edge.ToStationId] = u; // <--- This is the key! "To get to V, we came from U"
+                            pq.Add((newDist, edge.ToStationId));
+                        }
+                    }
+                }
+            }
+
+            // Reconstruct path backwards: End -> Start
+            var path = new List<int>();
+            if (!prev.ContainsKey(endId) && startId != endId) return path; // No path found
+
+            int curr = endId;
+            while (curr != startId)
+            {
+                path.Add(curr);
+                curr = prev[curr];
+            }
+            path.Add(startId);
+            path.Reverse(); // Now it is Start -> End
+            return path;
+        }
+    }
 
     internal class StationDemandInternal
     {
         public int StationId { get; set; }
         public Station Station { get; set; }
-
         public int CargoCount { get; set; }
         public int TotalWeightKg { get; set; }
     }
