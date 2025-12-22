@@ -13,6 +13,7 @@ namespace yazlab3.web.Data
         public DbSet<CargoRequest> CargoRequests { get; set; }
         public DbSet<Route> Routes { get; set; }
         public DbSet<RouteStation> RouteStations { get; set; }
+        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -135,6 +136,12 @@ namespace yazlab3.web.Data
                 new Vehicle { Id = 1, CapacityKg = 500, IsRented = false, RentalCost = 0 },
                 new Vehicle { Id = 2, CapacityKg = 750, IsRented = false, RentalCost = 0 },
                 new Vehicle { Id = 3, CapacityKg = 1000, IsRented = false, RentalCost = 0 }
+            );
+
+            modelBuilder.Entity<User>().HasData(
+                new User { Id = 1, Username = "admin", Password = "123", Role = "Admin" },
+                new User { Id = 2, Username = "user1", Password = "123", Role = "User" },
+                new User { Id = 3, Username = "user2", Password = "123", Role = "User" }
             );
 
 

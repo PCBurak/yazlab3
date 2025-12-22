@@ -29,6 +29,21 @@ namespace yazlab3.web.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Users",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Username = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Password = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Role = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Users", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Vehicles",
                 columns: table => new
                 {
@@ -161,6 +176,16 @@ namespace yazlab3.web.Migrations
                 });
 
             migrationBuilder.InsertData(
+                table: "Users",
+                columns: new[] { "Id", "Password", "Role", "Username" },
+                values: new object[,]
+                {
+                    { 1, "123", "Admin", "admin" },
+                    { 2, "123", "User", "user1" },
+                    { 3, "123", "User", "user2" }
+                });
+
+            migrationBuilder.InsertData(
                 table: "Vehicles",
                 columns: new[] { "Id", "CapacityKg", "IsRented", "RentalCost" },
                 values: new object[,]
@@ -247,6 +272,9 @@ namespace yazlab3.web.Migrations
 
             migrationBuilder.DropTable(
                 name: "StationDistances");
+
+            migrationBuilder.DropTable(
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "Routes");

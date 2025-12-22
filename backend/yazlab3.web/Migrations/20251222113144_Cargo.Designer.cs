@@ -12,7 +12,7 @@ using yazlab3.web.Data;
 namespace yazlab3.web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251221235534_Cargo")]
+    [Migration("20251222113144_Cargo")]
     partial class Cargo
     {
         /// <inheritdoc />
@@ -484,6 +484,54 @@ namespace yazlab3.web.Migrations
                             DistanceKm = 15.0,
                             FromStationId = 12,
                             ToStationId = 99
+                        });
+                });
+
+            modelBuilder.Entity("yazlab3.web.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Password = "123",
+                            Role = "Admin",
+                            Username = "admin"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Password = "123",
+                            Role = "User",
+                            Username = "user1"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Password = "123",
+                            Role = "User",
+                            Username = "user2"
                         });
                 });
 
