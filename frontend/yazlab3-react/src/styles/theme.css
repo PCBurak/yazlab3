@@ -1,0 +1,395 @@
+/* PROFESYONEL RENK PALETİ */
+:root {
+  --sidebar-bg: #0f172a; /* Slate 900 */
+  --main-bg: #f8fafc; /* Slate 50 */
+  --primary: #4f46e5; /* Indigo 600 */
+  --text-dark: #1e293b; /* Slate 800 */
+  --text-muted: #64748b; /* Slate 500 */
+  --border-color: #e2e8f0;
+}
+
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--main-bg);
+}
+
+/* SIDEBAR MODERLEŞTİRME */
+.modern-sidebar {
+  width: 260px;
+  background-color: var(--sidebar-bg);
+  color: white;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  font-size: 1.2rem;
+  margin-bottom: 40px;
+  color: #fff;
+}
+
+.logo-icon {
+  background: var(--primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.content-header h1 {
+  font-size: 24px;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* STATS GRID */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card .p-4 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.stat-icon.purple {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+.stat-icon.green {
+  background: #ecfdf5;
+  color: #10b981;
+}
+.stat-icon.orange {
+  background: #fff7ed;
+  color: #f59e0b;
+}
+
+.stat-info p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.stat-info h3 {
+  margin: 4px 0 0 0;
+  font-size: 22px;
+  color: var(--text-dark);
+}
+
+/* DASHBOARD GRID */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* Harita geniş, tablo dar */
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Harita kapsayıcısını büyüt ve Admin Paneliyle aynı stili ver */
+.map-wrapper {
+  height: 550px !important; /* Yüksekliği 400'den 550'ye çıkardık */
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background-color: #fff;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05); /* İç gölge ile haritayı gömdük */
+}
+
+/* User Dashboard'daki ızgara oranını değiştirin */
+.user-grid {
+  grid-template-columns: 350px 1fr !important; /* Formu sabit dar yapıp haritaya tüm alanı bıraktık */
+  align-items: start;
+  gap: 24px;
+}
+
+/* MapView içindeki Leaflet konteynerine tam boy verin */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .user-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Modern Select ve Form Elemanları */
+.modern-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: white;
+  color: var(--text-dark);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modern-select:focus {
+  border-color: var(--primary);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-avatar-bg {
+  background: linear-gradient(135deg, #6366f1, #a855f7) !important;
+}
+
+.modern-submit-btn {
+  width: 100%;
+  height: 45px;
+  font-weight: 600;
+  background: var(--primary) !important;
+}
+
+/* Harita boyutu uyumu */
+.user-map {
+  height: 400px;
+}
+/* Kartların Admin Paneli gibi beyaz ve gölgeli durması için */
+.card {
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  overflow: hidden;
+}
+
+/* User Dashboard Header hizalaması için */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+.user-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Input ve Select odaklanma (Focus) iyileştirmesi */
+.modern-select,
+.modern-input {
+  background: #fdfdfd;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.modern-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+/* Haritayı tam genişlikte ve daha yüksek yapın */
+.map-wrapper-large {
+  height: 500px !important;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+/* Üstteki formun modern yatay dizilimi */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Kart genel stili (Admin ile aynı) */
+.card {
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Responsive ayar */
+@media (max-width: 768px) {
+  .top-section .card-content div {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* Form Izgara Yapıları */
+.form-grid-three {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+.form-grid-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Fiyat Tahmini Alanı */
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-label {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.price-value {
+  color: var(--text-dark);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* Bilgi Kartı Stili */
+.info-card-bg {
+  background-color: #f0f4ff !important;
+  border: 1px dashed var(--primary) !important;
+}
+
+.info-flex {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.info-icon {
+  font-size: 24px;
+  color: var(--primary);
+}
+
+.info-text h4 {
+  margin: 0 0 4px 0;
+  color: var(--text-dark);
+}
+
+.info-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+/* İstasyon Yönetimi Özel Grid */
+.admin-station-grid {
+  grid-template-columns: 320px 1fr !important;
+  gap: 24px;
+}
+
+/* Durum Göstergeleri */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-dot.online {
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+.status-dot.offline {
+  background-color: #ef4444;
+}
+
+/* Badge ve Tablo Butonları */
+.badge-type {
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-table {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: 0.2s;
+  color: #64748b;
+}
+
+.btn-table:hover {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+.btn-table.delete:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .admin-station-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

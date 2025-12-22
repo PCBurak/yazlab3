@@ -1,0 +1,73 @@
+/* sidebar.css */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.nav-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  color: #94a3b8; /* Soluk gri metin */
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-item i {
+  width: 20px;
+  font-size: 18px;
+  text-align: center;
+}
+
+/* Üzerine gelince (Hover) */
+.nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+/* Aktif Sayfa (Active) */
+.nav-item.active {
+  background-color: var(--primary); /* Daha önce tanımladığımız Indigo */
+  color: white;
+}
+
+/* Alt Bölüm */
+.sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 16px;
+  margin-top: auto;
+}
+
+.nav-item.logout:hover {
+  color: #ef4444; /* Çıkış yap butonu için kırmızı vurgu */
+  background-color: rgba(239, 68, 68, 0.1);
+}
+.nav-item a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.nav-item a.active {
+  background-color: var(--primary);
+  color: white;
+}
