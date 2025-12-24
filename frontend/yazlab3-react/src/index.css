@@ -3,9 +3,10 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* --- DEĞİŞİKLİK BURADA: Varsayılanı Light Mode Yaptık --- */
+  color-scheme: light; 
+  color: #213547; /* Yazı rengi artık koyu gri (neredeyse siyah) */
+  background-color: #ffffff; /* Arka plan beyaz */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,20 +27,18 @@ a:hover {
 body {
   margin: 0;
   padding: 0;
-  /* REMOVED: display: flex; -> This was centering everything */
-  /* REMOVED: place-items: center; -> This was squashing it */
   min-height: 100vh;
   width: 100vw;
-  overflow-x: hidden; /* Prevents accidental horizontal scrollbars */
+  overflow-x: hidden;
 }
 
-/* --- NEW: Ensure React Root takes full space --- */
+/* --- Ensure React Root takes full space --- */
 #root {
   width: 100%;
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  display: block; /* Ensures standard block layout instead of flex */
+  display: block; 
 }
 
 h1 {
@@ -54,7 +53,7 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #f9f9f9; /* Buton arka planını açtık */
   cursor: pointer;
   transition: border-color 0.25s;
 }
@@ -66,15 +65,8 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* --- GARANTİ ÇÖZÜM: Tüm inputlar için zorunlu stil --- */
+input, select, textarea {
+  color: #1e293b !important; /* Koyu renk yazı */
+  background-color: #ffffff !important; /* Beyaz arka plan */
 }

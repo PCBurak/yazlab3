@@ -23,21 +23,6 @@ namespace yazlab3.web.Controllers
             _db = db;
         }
 
-        [HttpPost("plan-routes")]
-        public IActionResult PlanRoutes([FromBody] PlanRouteRequestDto dto)
-        {
-            var cargoEntities = dto.CargoRequests.Select(c => new CargoRequest
-            {
-                StationId = c.StationId,
-                CargoCount = c.CargoCount,
-                TotalWeightKg = c.TotalWeightKg,
-                RequestDate = c.RequestDate
-            }).ToList();
-
-            var routes = _routeService.PlanRoutes(cargoEntities, dto.UnlimitedVehicles);
-            return Ok(routes);
-        }
-
         [HttpPost("run-scenario")]
         public IActionResult RunScenario([FromBody] ScenarioRunRequestDto dto)
         {
@@ -133,6 +118,127 @@ namespace yazlab3.web.Controllers
             => (s ?? "").Trim().ToLowerInvariant()
                 .Replace("ı", "i").Replace("İ", "i").Replace("ç", "c")
                 .Replace("ğ", "g").Replace("ö", "o").Replace("ş", "s").Replace("ü", "u");
+
+
+        [HttpPost("plan-dynamic")]
+        public IActionResult PlanDynamicRoutes([FromBody] bool unlimitedVehicles)
+        {
+            // 1. Fetch ALL cargo requests from the Database (Simulating "Next Day" planning)
+            // In a real app, you might filter by Date, e.g., .Where(r => r.RequestDate.Date == DateTime.Today.AddDays(1))
+            var dbRequests = _db.CargoRequests.ToList();
+
+            if (!dbRequests.Any())
+            {
+                return BadRequest(new { message = "No cargo requests found in the database. Go to the User page and add some!" });
+            }
+
+            // 2. Run the existing Route Algorithm on this Real Data
+            var routes = _routeService.PlanRoutes(dbRequests, unlimitedVehicles);
+
+                        // 3. SAVE to Database (Requirement: "All expeditions must be recorded" [cite: 27])
+                        // We clear old routes for this demo to avoid duplicates, or you can append them.
+                        // _db.Routes.RemoveRange(_db.Routes); 
+                        // _db.SaveChanges();
+
+            _db.Routes.AddRange(routes);
+            _db.SaveChanges();
+
+            // 4. Convert to DTO for the Map (Same logic as RunScenario)
+            var response = routes.Select(r =>
+            {
+                // Sort stops by Order
+                var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
+
+                var routeDto = new UserRouteResponseDto
+                {
+                    VehicleId = r.VehicleId,
+                    TotalDistanceKm = r.TotalDistanceKm,
+                    TotalCost = r.TotalCost,
+                    Route = sortedStops.Select(rs => new StationRouteDto
+                    {
+                        StationId = rs.StationId,
+                        StationName = rs.Station?.Name ?? "Unknown", // Handle nulls safely
+                        Order = rs.Order,
+                        Latitude = rs.Station?.Latitude ?? 0,
+                        Longitude = rs.Station?.Longitude ?? 0
+                    }).ToList()
+                };
+
+                // Add Path from Depot (99) -> First Stop
+                if (sortedStops.Any())
+                {
+                    var first = sortedStops.First();
+                    var startPath = _routeService.GetPathCoordinates(99, first.StationId);
+                    routeDto.PathCoordinates.AddRange(startPath);
+                }
+
+                // Add Paths between stops
+                for (int i = 0; i < sortedStops.Count - 1; i++)
+                {
+                    var cur = sortedStops[i];
+                    var next = sortedStops[i + 1];
+                    var seg = _routeService.GetPathCoordinates(cur.StationId, next.StationId);
+                    routeDto.PathCoordinates.AddRange(seg);
+                }
+
+                return routeDto;
+            }).ToList();
+
+            return Ok(response);
+        }
+
+        [HttpPost("plan-routes")]
+        public IActionResult PlanRoutes([FromBody] PlanRequestDto dto)
+        {
+            // 1. Veritabanındaki "İşlenmemiş" (Bekleyen) Kargoları Çek
+            // PDF İsteri: "Rota planlaması yaparken bir sonraki gün istasyondaki kargo sayısı..." 
+            // Ancak demo için tümünü çekiyoruz.
+            var pendingRequests = _db.CargoRequests.ToList();
+
+            if (!pendingRequests.Any())
+            {
+                return BadRequest(new { message = "Planlanacak kargo talebi bulunamadı. Önce kullanıcı panelinden kargo ekleyin." });
+            }
+
+            // 2. Algoritmayı Çalıştır
+            // unLimitedVehicles = true ise Sınırsız Araç Problemi 
+            // unLimitedVehicles = false ise Belirli Sayıda Araç Problemi 
+            var routes = _routeService.PlanRoutes(pendingRequests, dto.UnlimitedVehicles);
+
+                        // 3. Sonuçları Veritabanına Kaydet (PDF İsteri: "Tüm seferler kaydedilip görüntülenmelidir" [cite: 27])
+                        // Önce eski planları temizleyebilir veya tarihçeli tutabilirsin. Şimdilik temizleyip ekliyoruz.
+                        // _db.Routes.RemoveRange(_db.Routes); 
+                        // _db.SaveChanges();
+
+            _db.Routes.AddRange(routes);
+            _db.SaveChanges();
+
+            // 4. Frontend İçin DTO'ya Çevir (Senaryo çıktısı ile aynı format)
+            var response = routes.Select(r => new UserRouteResponseDto
+            {
+                VehicleId = r.VehicleId,
+                TotalDistanceKm = r.TotalDistanceKm,
+                TotalCost = r.TotalCost,
+                PathCoordinates = r.RouteStations
+                                   .OrderBy(rs => rs.Order)
+                                   .SelectMany(rs => _routeService.GetPathCoordinates(99, rs.StationId)) // Basitleştirilmiş path
+                                   .ToList(),
+                Route = r.RouteStations.Select(rs => new StationRouteDto
+                {
+                    StationName = rs.Station?.Name ?? "Bilinmiyor",
+                    Order = rs.Order,
+                    Latitude = rs.Station?.Latitude ?? 0,
+                    Longitude = rs.Station?.Longitude ?? 0
+                }).ToList()
+            }).ToList();
+
+            return Ok(response);
+        }
+
+        public class PlanRequestDto
+        {
+            public bool UnlimitedVehicles { get; set; } // true: Sınırsız, false: Sabit 3 Araç
+        }
     }
 
     public class ScenarioRunRequestDto

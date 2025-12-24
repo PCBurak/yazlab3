@@ -1,75 +1,140 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import "./login.css";
 
 export default function Register() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [password2, setPassword2] = useState("");
-
+  const [role, setRole] = useState("User"); 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  
+  const navigate = useNavigate();
 
   const canSubmit = useMemo(() => {
-    return (
-      name.length >= 2 &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-      password.length >= 6 &&
-      password === password2
-    );
-  }, [name, email, password, password2]);
+    return username.length >= 3 && password.length >= 3;
+  }, [username, password]);
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault();
     setError("");
     setSuccess("");
 
     if (!canSubmit) {
-      setError("Bilgileri doğru gir.");
+      setError("Alanları kontrol ediniz.");
       return;
     }
 
-    setSuccess("Kayıt başarılı (demo)");
+    try {
+      const response = await fetch("http://localhost:5014/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, role }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Kayıt başarısız.");
+      }
+
+      setSuccess("Kayıt başarılı! Yönlendiriliyorsunuz...");
+      setTimeout(() => navigate("/"), 2000);
+
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (
-    <div className="login-root">
-      <section className="card">
-        <h2>Kayıt Ol</h2>
+    <div className="login-wrapper">
+      <div className="bg-decoration top-left"></div>
+      <div className="bg-decoration bottom-right"></div>
 
-        <form onSubmit={onSubmit} className="form">
-          <input
-            placeholder="Ad Soyad"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+      <div className="login-card-modern">
+        <div className="login-header">
+          <div className="logo-box" style={{background: "#10b981"}}>
+            <i className="fa-solid fa-user-plus"></i>
+          </div>
+          <h1>Hesap Oluştur</h1>
+          <p className="subtitle">Yeni kullanıcı bilgilerini tanımlayın</p>
+        </div>
 
-          <input
-            type="email"
-            placeholder="E-posta"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+        <form onSubmit={onSubmit}>
+          {/* USERNAME */}
+          <div className="modern-field">
+            <label>Kullanıcı Adı</label>
+            <div className="input-with-icon">
+              <i className="fa-regular fa-user"></i>
+              <input
+                type="text"
+                placeholder="Kullanıcı Adı"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+          </div>
 
-          <input
-            type="password"
-            placeholder="Şifre"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          {/* GRID: PASSWORD & ROLE */}
+          <div className="form-grid-two">
+            <div className="modern-field">
+              <label>Şifre</label>
+              <div className="input-with-icon">
+                <i className="fa-solid fa-lock"></i>
+                <input
+                  type="password"
+                  placeholder="•••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-          <input
-            type="password"
-            placeholder="Şifre tekrar"
-            value={password2}
-            onChange={(e) => setPassword2(e.target.value)}
-          />
+            <div className="modern-field">
+              <label>Rol</label>
+              <div className="input-with-icon">
+                <i className="fa-solid fa-user-shield"></i>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  // Uses the same CSS as input thanks to the update in login.css
+                >
+                  <option value="User">User</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          {success && <p style={{ color: "green" }}>{success}</p>}
+          {/* MESSAGES */}
+          {error && (
+            <div className="error-message">
+              <i className="fa-solid fa-circle-exclamation"></i> {error}
+            </div>
+          )}
+          {success && (
+            <div className="success-message">
+              <i className="fa-solid fa-circle-check"></i> {success}
+            </div>
+          )}
 
-          <button disabled={!canSubmit}>Kayıt Ol</button>
+          {/* BUTTON */}
+          <button className="modern-login-btn" disabled={!canSubmit} style={{background: "#10b981"}}>
+            <span>Kayıt Ol</span>
+            <i className="fa-solid fa-user-check"></i>
+          </button>
         </form>
-      </section>
+
+        <div className="login-footer-text">
+          <p>
+            Zaten hesabınız var mı?{" "}
+            <Link to="/" style={{ color: "#10b981", fontWeight: "600", textDecoration: "none" }}>
+              Giriş Yap
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

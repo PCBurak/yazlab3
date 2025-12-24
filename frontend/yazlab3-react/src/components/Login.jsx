@@ -22,62 +22,67 @@ function Login({ onLogin }) {
 
       const userData = await response.json();
       
-      // Save session
-      localStorage.setItem("user", JSON.stringify(userData));
-      
-      // Update App state
+      // Update App State & Storage
       onLogin(userData);
 
-      // Redirect Traffic
-      if (userData.role === "Admin") navigate("/admin");
-      else navigate("/user");
-
     } catch (err) {
-      setError("Invalid username or password");
+      setError("Hatalı kullanıcı adı veya şifre.");
     }
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={{marginTop: 0, color: "white"}}>Login</h2>
+    <div className="dashboard-container" style={{ justifyContent: "center", alignItems: "center" }}>
+      <div className="card" style={{ width: "400px", padding: "40px" }}>
+        <div style={{ textAlign: "center", marginBottom: "30px" }}>
+          <h1 style={{ color: "#4f46e5", margin: 0 }}>Kargo Panel</h1>
+          <p className="subtitle">Lütfen hesabınıza giriş yapın</p>
+        </div>
+
         <form onSubmit={handleLogin}>
-          <div style={styles.inputGroup}>
-            <label style={{color: "#ddd"}}>Username</label>
+          <div className="form-group">
+            <label style={{ fontWeight: 500 }}>Kullanıcı Adı</label>
             <input 
+              className="modern-select" // Reusing input style
               value={username} 
               onChange={(e) => setUsername(e.target.value)} 
-              style={styles.input}
               required
+              placeholder="admin"
             />
           </div>
-          <div style={styles.inputGroup}>
-            <label style={{color: "#ddd"}}>Password</label>
+
+          <div className="form-group" style={{ marginTop: "15px" }}>
+            <label style={{ fontWeight: 500 }}>Şifre</label>
             <input 
-              type="password" 
+              type="password"
+              className="modern-select"
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
-              style={styles.input}
               required
+              placeholder="••••••"
             />
           </div>
-          {error && <p style={{ color: "#ff6b6b", fontSize: "0.9em" }}>{error}</p>}
-          <button type="submit" style={styles.button}>Sign In</button>
+
+          {error && (
+            <div style={{ color: "#ef4444", marginTop: "15px", fontSize: "14px", textAlign: "center" }}>
+              <i className="fas fa-exclamation-circle"></i> {error}
+            </div>
+          )}
+
+          <button 
+            type="submit" 
+            className="modern-submit-btn" 
+            style={{ marginTop: "25px", borderRadius: "8px" }}
+          >
+            Giriş Yap
+          </button>
         </form>
-        <p style={{marginTop: "15px", fontSize: "0.9em", color: "#bbb"}}>
-          Don't have an account? <Link to="/register" style={{color: "#646cff"}}>Register here</Link>
+
+        <p style={{ marginTop: "20px", textAlign: "center", fontSize: "14px", color: "#64748b" }}>
+          Hesabınız yok mu? <Link to="/register" style={{ color: "#4f46e5", fontWeight: "bold" }}>Kayıt Ol</Link>
         </p>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: { display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", width: "100vw", backgroundColor: "#242424", position: "fixed", top: 0, left: 0 },
-  card: { padding: "30px", backgroundColor: "#333", borderRadius: "10px", boxShadow: "0 4px 15px rgba(0,0,0,0.3)", width: "350px", textAlign: "center" },
-  inputGroup: { marginBottom: "15px", display: "flex", flexDirection: "column", textAlign: "left" },
-  input: { padding: "10px", marginTop: "5px", borderRadius: "5px", border: "1px solid #555", backgroundColor: "#444", color: "white", fontSize: "16px" },
-  button: { width: "100%", padding: "12px", marginTop: "10px", backgroundColor: "#646cff", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "16px", fontWeight: "bold" }
-};
 
 export default Login;
