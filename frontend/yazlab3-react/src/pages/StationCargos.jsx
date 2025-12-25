@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Sidebar from "../components/ui/Sidebar"; // Doğrudan bileşen
+import Sidebar from "../components/ui/Sidebar"; 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import "../styles/theme.css";
 import "../styles/table.css";
@@ -12,8 +12,13 @@ export default function StationCargos({ onLogout }) {
 
   // 1. Tüm İstasyonları Çek
   useEffect(() => {
+    // Controller yapına göre burası "api/stations" veya "api/cargo/stations" olabilir.
+    // StationController'ın varsa "api/stations" doğrudur.
     fetch("http://localhost:5014/api/stations")
-      .then((res) => res.json())
+      .then((res) => {
+        if(!res.ok) throw new Error("İstasyonlar çekilemedi");
+        return res.json();
+      })
       .then((data) => setStations(data))
       .catch((err) => console.error("İstasyon hatası:", err));
   }, []);
@@ -41,16 +46,26 @@ export default function StationCargos({ onLogout }) {
 
   return (
     <div className="dashboard-container">
-      {/* DÜZELTME: <aside> etiketi kaldırıldı. 
-         Sidebar zaten kendi stilini taşıyor.
+      
+      {/* --- DÜZELTME BAŞLANGICI --- */}
+      {/* Diğer sayfalardaki (AdminDashboard vb.) yapıya sadık kalarak
+          Sidebar'ı 'modern-sidebar' kapsayıcısı içine aldık.
+          Bu sınıf theme.css içindeki lacivert arka planı (var(--sidebar-bg)) verir.
       */}
-      <Sidebar role="Admin" onLogout={onLogout} />
+      <aside className="modern-sidebar">
+        <div className="sidebar-logo">
+          <div className="logo-icon">L</div>
+          <span>LOGI-TECH</span>
+        </div>
+        <Sidebar role="Admin" onLogout={onLogout} />
+      </aside>
+      {/* --- DÜZELTME BİTİŞİ --- */}
 
       <main className="main-content">
         <header className="content-header">
           <div>
-            <h1>İstasyon Depo Durumu</h1>
-            <p className="subtitle">İstasyonlardaki bekleyen yükleri inceleyin.</p>
+            [cite_start]<h1>İstasyon Depo Durumu [cite: 10]</h1>
+            <p className="subtitle">İstasyonlardaki bekleyen yükleri ve ağırlıklarını inceleyin.</p>
           </div>
         </header>
 
@@ -63,7 +78,7 @@ export default function StationCargos({ onLogout }) {
             </CardHeader>
             <CardContent>
               <div className="station-list">
-                {stations.length === 0 ? <p>Yükleniyor...</p> : stations.map((s) => (
+                {stations.length === 0 ? <p style={{color: "#999", textAlign: "center"}}>Yükleniyor...</p> : stations.map((s) => (
                   <div
                     key={s.id}
                     onClick={() => handleStationClick(s)}
