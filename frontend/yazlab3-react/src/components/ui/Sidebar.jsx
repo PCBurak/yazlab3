@@ -1,27 +1,26 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import "../../styles/sidebar.css"; 
+import "../../styles/sidebar.css";
 
 export default function Sidebar({ role, onLogout }) {
   const isAdmin = role === "Admin" || role === "admin";
   const isUser = role === "User" || role === "user";
 
   return (
-    <nav 
-      className="sidebar-container" 
+    <nav
+      className="sidebar-container"
       // BU KISIM KRİTİK: Menüyü esnek kutu (flex) yapıp dikey hizalıyoruz
-      style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        height: "100%", 
-        minHeight: "100vh" // Ekran boyu kadar yer kaplamasını garanti ediyoruz
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: "100vh", // Ekran boyu kadar yer kaplamasını garanti ediyoruz
       }}
     >
       {/* Menü elemanlarını kapsayan bu div'e 'flex: 1' veriyoruz.
          Böylece bu alan kalan tüm boşluğu kaplar ve footer'ı en alta iter.
       */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        
         {/* 👑 ADMIN MENÜSÜ */}
         {isAdmin && (
           <ul className="nav-menu">
@@ -50,14 +49,17 @@ export default function Sidebar({ role, onLogout }) {
             <li className="nav-item">
               <NavLink
                 to="/admin/routes"
-                className={({ isActive }) => (isActive ? "active" : "")} 
+                className={({ isActive }) => (isActive ? "active" : "")}
               >
                 <i className="fa-solid fa-route"></i>
                 <span>Rota Planlama</span>
               </NavLink>
             </li>
             <li className="nav-item">
-              <NavLink to="/admin/station-cargos" className={({ isActive }) => (isActive ? "active" : "")}>
+              <NavLink
+                to="/admin/station-cargos"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
                 <i className="fa-solid fa-dolly"></i>
                 <span>İstasyon Yükleri</span>
               </NavLink>
@@ -90,8 +92,8 @@ export default function Sidebar({ role, onLogout }) {
             </li>
 
             <li className="nav-item">
-              <NavLink 
-                to="/user/tracking" 
+              <NavLink
+                to="/user/tracking"
                 className={({ isActive }) => (isActive ? "active" : "")}
               >
                 <i className="fa-solid fa-map-location-dot"></i>
@@ -105,10 +107,15 @@ export default function Sidebar({ role, onLogout }) {
       {/* 🚪 ALT BÖLÜM (ÇIKIŞ) */}
       {/* Yukarıdaki div (flex:1) sayesinde bu kısım otomatik olarak en alta itilir */}
       <div className="sidebar-footer" style={{ marginTop: "auto" }}>
-        <div 
-            className="nav-item logout-link" 
-            onClick={onLogout} 
-            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "12px" }}
+        <div
+          className="nav-item logout-link"
+          onClick={onLogout}
+          style={{
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
         >
           <i className="fa-solid fa-right-from-bracket"></i>
           <span>Çıkış Yap</span>

@@ -11,6 +11,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
 
+builder.Services.AddSingleton<OsmDataService>(sp =>
+{
+    var parser = new OsmDataService();
+    // GeoJSON dosyasının yolunu belirtin (Data klasöründe olduğunu varsayıyoruz)
+    var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "kocaeli.geojson");
+
+    if (File.Exists(filePath))
+    {
+        parser.LoadFromGeoJson(filePath);
+    }
+    return parser;
+});
+
 builder.Services.AddScoped<ICostService, CostService>();
 builder.Services.AddScoped<IRoutePlanningService, RoutePlanningService>();
 builder.Services.AddScoped<IUserRouteService, UserRouteService>();
