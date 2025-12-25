@@ -56,6 +56,12 @@ export default function Sidebar({ role, onLogout }) {
                 <span>Rota Planlama</span>
               </NavLink>
             </li>
+            <li className="nav-item">
+              <NavLink to="/admin/station-cargos" className={({ isActive }) => (isActive ? "active" : "")}>
+                <i className="fa-solid fa-dolly"></i>
+                <span>İstasyon Yükleri</span>
+              </NavLink>
+            </li>
           </ul>
         )}
 

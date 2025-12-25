@@ -10,6 +10,7 @@ import CargoSend from "./pages/CargoSend";
 import RoutePlanning from "./pages/RoutePlanning";
 import StationManagement from "./pages/StationManagement";
 import CargoTracking from "./pages/CargoTracking";
+import StationCargos from "./pages/StationCargos";
 
 // import StationManagement from "./pages/StationManagement"; // Admin için gerekirse bunu da açabilirsin
 
@@ -119,6 +120,10 @@ function App() {
       <Route 
         path="/user/tracking" 
         element={user && user.role === "User" ? <CargoTracking onLogout={handleLogout} /> : <Navigate to="/" />} 
+      />
+      <Route 
+        path="/admin/station-cargos" 
+        element={user && user.role === "Admin" ? <StationCargos onLogout={handleLogout} /> : <Navigate to="/" />} 
       />
     </Routes>
   );

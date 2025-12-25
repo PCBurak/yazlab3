@@ -101,6 +101,39 @@ namespace yazlab3.web.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("by-station/{stationId}")]
+        public IActionResult GetCargosByStation(int stationId)
+        {
+            // Veritabanında bu istasyona ait kayıt var mı kontrol edelim
+            var query = _db.CargoRequests.Where(c => c.StationId == stationId);
+
+            // Eğer hiç kayıt yoksa boş liste dön (Hata vermez, boş tablo gösterir)
+            if (!query.Any())
+            {
+                return Ok(new List<object>());
+            }
+
+            var cargos = query
+                .Select(c => new
+                {
+                    // Senin CargoRequest modelindeki alanlar:
+                    c.Id,
+
+                    // Eğer veritabanında bu alanlar NULL ise patlamasın diye kontrol koyuyoruz:
+                    ReceiverName = c.ReceiverName ?? "Belirtilmemiş",
+                    CargoType = c.CargoType ?? "Standart",
+
+                    c.TotalWeightKg,
+
+                    // Tarih formatlaması
+                    Date = c.RequestDate.ToString("dd.MM.yyyy HH:mm")
+                })
+                .OrderByDescending(x => x.Id) // En son eklenen en üstte
+                .ToList();
+
+            return Ok(cargos);
+        }
     }
 
     // Frontend'den veri taşıyan paket (DTO)
