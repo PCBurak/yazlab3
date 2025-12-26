@@ -12,7 +12,7 @@ namespace yazlab3.web.Services
         private readonly ICostService _costService;
         private readonly OsmDataService _osmParser;
 
-        // Graph adjacency list for Dijkstra
+        // Dijkstra için Graph yapısı
         private readonly Dictionary<int, List<Edge>> _adjacency = new Dictionary<int, List<Edge>>();
 
         private class Edge
@@ -27,7 +27,7 @@ namespace yazlab3.web.Services
             _costService = costService;
             _osmParser = osmParser;
 
-            // Load Graph
+            // Veritabanındaki mesafeleri Graph'a yükle
             if (_db.StationDistances.Any())
             {
                 var allEdges = _db.StationDistances.ToList();
@@ -46,33 +46,28 @@ namespace yazlab3.web.Services
         // ------------------------------------------------------------
         // MAIN API: Plan Routes
         // ------------------------------------------------------------
-        // strategy: 0 = Max Ağırlık (Varsayılan), 1 = Max Adet (Küçük Kargolar Önce)
-        public List<Route> PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles, int strategy = 0)
+        public RoutePlanResult PlanRoutes(List<CargoRequest> requests, bool unlimitedVehicles, int strategy = 0)
         {
             if (requests == null || requests.Count == 0)
-                return new List<Route>();
+                return new RoutePlanResult();
 
-            // --- ADIM 1: KARGO ELEME (KNAPSACK MANTIĞI) ---
+            // --- ADIM 1: KARGO ELEME (KNAPSACK) ---
             List<CargoRequest> acceptedRequests;
-            List<CargoRequest> rejectedRequests = new List<CargoRequest>(); // İleride bunu da döndüreceğiz
+            List<CargoRequest> rejectedRequests = new List<CargoRequest>();
 
             if (!unlimitedVehicles)
             {
-                // Sabit 3 Aracın Toplam Kapasitesi: 500 + 750 + 1000 = 2250 KG
-                double maxSystemCapacity = 2250;
+                double maxSystemCapacity = 2250; // 3 aracın toplam kapasitesi
                 double currentLoad = 0;
                 acceptedRequests = new List<CargoRequest>();
 
-                // STRATEJİ BELİRLEME
                 List<CargoRequest> sortedCargos;
-                if (strategy == 1)
+                if (strategy == 1) // Max Adet
                 {
-                    // Max Adet: En hafifleri öne al ki daha çok paket sığsın
                     sortedCargos = requests.OrderBy(r => r.TotalWeightKg).ToList();
                 }
-                else
+                else // Max Ağırlık
                 {
-                    // Max Ağırlık: En ağırları öne al (Varsayılan)
                     sortedCargos = requests.OrderByDescending(r => r.TotalWeightKg).ToList();
                 }
 
@@ -85,17 +80,16 @@ namespace yazlab3.web.Services
                     }
                     else
                     {
-                        rejectedRequests.Add(req); // Bu kargo kapasite dışı kaldı
+                        rejectedRequests.Add(req);
                     }
                 }
             }
             else
             {
-                // Sınırsız modda hepsini kabul et
                 acceptedRequests = requests;
             }
 
-            // --- ADIM 2: GRUPLAMA (DETAYLARI KORUYARAK) ---
+            // --- ADIM 2: GRUPLAMA ---
             var stationIds = acceptedRequests.Select(r => r.StationId).Distinct().ToList();
             var stationMap = _db.Stations
                 .Where(s => stationIds.Contains(s.Id))
@@ -109,14 +103,12 @@ namespace yazlab3.web.Services
                     Station = stationMap[g.Key],
                     CargoCount = g.Sum(x => x.CargoCount),
                     TotalWeightKg = g.Sum(x => x.TotalWeightKg),
-
-                    // KRİTİK: Hangi kargoların bu gruba dahil olduğunu saklıyoruz
                     IncludedRequestIds = g.Select(x => x.Id).ToList()
                 })
                 .OrderByDescending(d => d.TotalWeightKg)
                 .ToList();
 
-            // --- ADIM 3: ARAÇLARA DAĞITIM (VRP) ---
+            // --- ADIM 3: ARAÇ ATAMA ---
             var availableVehicles = _db.Vehicles
                 .Where(v => !v.IsRented)
                 .OrderBy(v => v.CapacityKg)
@@ -133,9 +125,8 @@ namespace yazlab3.web.Services
 
                 if (vehicle == null)
                 {
-                    if (!unlimitedVehicles) continue; // Zaten başta eledik ama güvenlik için
+                    if (!unlimitedVehicles) continue;
 
-                    // Kiralık araç
                     vehicle = new Vehicle { CapacityKg = 500, IsRented = true, RentalCost = 200 };
                     _db.Vehicles.Add(vehicle);
                     _db.SaveChanges();
@@ -155,7 +146,7 @@ namespace yazlab3.web.Services
                 plannedRoutes.Add(newRoute);
             }
 
-            // --- ADIM 4: ROUTE NESNESİNE DÖNÜŞTÜRME ---
+            // --- ADIM 4: ROUTE OLUŞTURMA ---
             var routes = new List<Route>();
             var depot = _db.Stations.Find(99);
 
@@ -164,7 +155,7 @@ namespace yazlab3.web.Services
                 double totalDist = 0;
                 List<double[]> fullPathCoordinates = new List<double[]>();
 
-                // A) Depo -> İlk Durak
+                // Depo -> İlk Durak
                 if (planned.Stops.Count > 0)
                 {
                     var firstStop = planned.Stops[0].Station;
@@ -172,7 +163,7 @@ namespace yazlab3.web.Services
                     fullPathCoordinates.AddRange(GetPathCoordinates(99, firstStop.Id));
                 }
 
-                // B) Duraklar Arası
+                // Duraklar Arası
                 for (int i = 0; i < planned.Stops.Count - 1; i++)
                 {
                     var s1 = planned.Stops[i].Station;
@@ -193,12 +184,7 @@ namespace yazlab3.web.Services
 
                 route.TotalCost = _costService.CalculateRouteCost(route.TotalDistanceKm, planned.Vehicle.IsRented);
 
-                // Hangi kargoların bu araçta olduğunu burada detaylandırabiliriz
                 var routeStations = new List<RouteStation>();
-
-                // Bu araçtaki toplam kargo ID'lerini toplamak istersen:
-                // List<int> cargoIdsInThisTruck = planned.Stops.SelectMany(s => s.IncludedRequestIds).ToList();
-
                 for (int i = 0; i < planned.Stops.Count; i++)
                 {
                     var stop = planned.Stops[i];
@@ -213,18 +199,19 @@ namespace yazlab3.web.Services
                 routes.Add(route);
             }
 
-            // NOT: İleride 'rejectedRequests' listesini de döndürmek için return tipini değiştireceğiz.
-            // Şimdilik sistem çalışsın diye sadece routes dönüyoruz.
-            return routes;
+            return new RoutePlanResult
+            {
+                Routes = routes,
+                RejectedRequests = rejectedRequests
+            };
         }
 
-        // ... (TryInsertIntoExistingRoute, CalculateInsertionExtraDistance, Dijkstra kodları AYNI KALACAK) ...
-
-        // Sadece internal class güncellemesi gerekiyor:
+        // ------------------------------------------------------------
+        // YARDIMCI METOTLAR
+        // ------------------------------------------------------------
 
         private bool TryInsertIntoExistingRoute(List<PlannedRoute> plannedRoutes, StationDemandInternal demand)
         {
-            // (Buradaki kodların değişmesine gerek yok, mantık aynı)
             PlannedRoute bestRoute = null;
             double minCostIncrease = double.MaxValue;
 
@@ -278,8 +265,10 @@ namespace yazlab3.web.Services
         private double CalculateDistanceKm(Station a, Station b)
         {
             if (a == null || b == null || a.Id == b.Id) return 0;
+            // Önce Graph (Dijkstra) dene
             double graphDist = GetShortestPathDistanceKm(a.Id, b.Id);
             if (graphDist > 0) return graphDist;
+            // Olmazsa Kuş Uçuşu (Haversine)
             return CalculateHaversineDistance(a, b);
         }
 
@@ -294,10 +283,21 @@ namespace yazlab3.web.Services
         }
         private double ToRadians(double deg) => deg * (Math.PI / 180);
 
-        // ... (GetShortestPathDistanceKm, GetPathCoordinates, FindNearestOsmNode, RunDijkstraOnOsm, GetShortestPathIds kodları AYNI) ...
-        // (Buraya kopyalamadım yer kaplamasın diye, senin kodundaki aynı kısımlar kalacak)
+        // --- GRAPH & OSM METOTLARI (TEK SEFER TANIMLI) ---
 
-        // --- BU KISMI EKSİK UNUTMA ---
+        public List<double[]> GetPathCoordinates(int fromStationId, int toStationId)
+        {
+            var startStation = _db.Stations.Find(fromStationId);
+            var endStation = _db.Stations.Find(toStationId);
+            if (startStation == null || endStation == null) return new List<double[]>();
+
+            string startNodeId = FindNearestOsmNode(startStation.Latitude, startStation.Longitude);
+            string endNodeId = FindNearestOsmNode(endStation.Latitude, endStation.Longitude);
+
+            var pathNodeIds = RunDijkstraOnOsm(startNodeId, endNodeId);
+            return pathNodeIds.Select(id => new double[] { _osmParser.Nodes[id].Lat, _osmParser.Nodes[id].Lon }).ToList();
+        }
+
         private double GetShortestPathDistanceKm(int fromStationId, int toStationId)
         {
             var dist = new Dictionary<int, double>();
@@ -337,17 +337,6 @@ namespace yazlab3.web.Services
             return 0;
         }
 
-        public List<double[]> GetPathCoordinates(int fromStationId, int toStationId)
-        {
-            var startStation = _db.Stations.Find(fromStationId);
-            var endStation = _db.Stations.Find(toStationId);
-            if (startStation == null || endStation == null) return new List<double[]>();
-            string startNodeId = FindNearestOsmNode(startStation.Latitude, startStation.Longitude);
-            string endNodeId = FindNearestOsmNode(endStation.Latitude, endStation.Longitude);
-            var pathNodeIds = RunDijkstraOnOsm(startNodeId, endNodeId);
-            return pathNodeIds.Select(id => new double[] { _osmParser.Nodes[id].Lat, _osmParser.Nodes[id].Lon }).ToList();
-        }
-
         private string FindNearestOsmNode(double lat, double lon)
         {
             if (_osmParser.Nodes == null || !_osmParser.Nodes.Any()) return null;
@@ -356,7 +345,6 @@ namespace yazlab3.web.Services
 
         private List<string> RunDijkstraOnOsm(string startId, string endId)
         {
-            // (Senin mevcut kodundaki aynı mantık)
             var dist = new Dictionary<string, double>();
             var prev = new Dictionary<string, string>();
             var pq = new SortedSet<(double d, string id)>(Comparer<(double d, string id)>.Create((a, b) => a.d == b.d ? a.id.CompareTo(b.id) : a.d.CompareTo(b.d)));
@@ -391,7 +379,6 @@ namespace yazlab3.web.Services
             path.Reverse();
             return path;
         }
-
     }
 
     // --- YARDIMCI SINIFLAR ---
@@ -402,8 +389,6 @@ namespace yazlab3.web.Services
         public Station Station { get; set; }
         public int CargoCount { get; set; }
         public int TotalWeightKg { get; set; }
-
-        // YENİ ÖZELLİK: Bu istasyondaki hangi kargoları aldık?
         public List<int> IncludedRequestIds { get; set; } = new List<int>();
     }
 
@@ -413,5 +398,11 @@ namespace yazlab3.web.Services
         public List<StationDemandInternal> Stops { get; } = new List<StationDemandInternal>();
         public double TotalDistanceKm { get; set; }
         public double UsedCapacityKg { get; set; }
+    }
+
+    public class RoutePlanResult
+    {
+        public List<Route> Routes { get; set; } = new();
+        public List<CargoRequest> RejectedRequests { get; set; } = new();
     }
 }

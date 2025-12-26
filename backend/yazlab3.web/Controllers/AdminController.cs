@@ -26,16 +26,13 @@ namespace yazlab3.web.Controllers
         [HttpPost("run-scenario")]
         public IActionResult RunScenario([FromBody] ScenarioRunRequestDto dto)
         {
-            // 1) Pull scenario rows (district name -> cargo/weight)
+            // 1) Senaryo verisini çek
             var rows = ScenarioData.GetScenario(dto.ScenarioId);
 
-            // 2) Map StationName -> StationId from DB
-            var stationMap = _db.Stations
-                .AsNoTracking()
-                .ToList()
-                .ToDictionary(s => Normalize(s.Name), s => s.Id);
+            // 2) İstasyonları map'le
+            var stationMap = _db.Stations.AsNoTracking().ToList().ToDictionary(s => Normalize(s.Name), s => s.Id);
 
-            // 3) Build CargoRequest list using REAL StationIds
+            // 3) Kargo listesini oluştur
             var cargoEntities = new List<CargoRequest>();
             var missing = new List<string>();
 
@@ -59,90 +56,36 @@ namespace yazlab3.web.Controllers
                 });
             }
 
-            if (missing.Count > 0)
-            {
-                return BadRequest(new { message = "Stations missing in DB", missing });
-            }
+            if (missing.Count > 0) return BadRequest(new { message = "Stations missing in DB", missing });
 
-            // 4) Execute Route Planning
-            // DÜZELTME: Stratejiyi (Ağırlık/Adet önceliği) servise gönderiyoruz
-            var routes = _routeService.PlanRoutes(cargoEntities, dto.UnlimitedVehicles, dto.Strategy);
+            // 4) Rota Planla (DÜZELTME: RoutePlanResult dönüş tipini karşılıyoruz)
+            var result = _routeService.PlanRoutes(cargoEntities, dto.UnlimitedVehicles, dto.Strategy);
 
-            // 5) CONVERT TO DTO (WITH MAP PATHS)
-            var response = routes.Select(r =>
-            {
-                // FIX: Convert ICollection to List and Sort by Order to allow Indexing [0]
-                var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
-                var fullPathCoordinates = new List<double[]>();
-
-                // --- MAP LOGIC ---
-                // A. Path from Depot (Umuttepe ID 99) to First Stop
-                if (sortedStops.Count > 0)
-                {
-                    var firstStop = sortedStops[0];
-                    // Fetch path coordinates from 99 -> First Stop
-                    var startPath = _routeService.GetPathCoordinates(99, firstStop.StationId);
-                    fullPathCoordinates.AddRange(startPath);
-                }
-
-                // B. Path between Stops
-                for (int i = 0; i < sortedStops.Count - 1; i++)
-                {
-                    var currentStop = sortedStops[i];
-                    var nextStop = sortedStops[i + 1];
-
-                    var segmentPoints = _routeService.GetPathCoordinates(currentStop.StationId, nextStop.StationId);
-                    fullPathCoordinates.AddRange(segmentPoints);
-                }
-
-                return new UserRouteResponseDto
-                {
-                    VehicleId = r.VehicleId,
-                    TotalDistanceKm = r.TotalDistanceKm,
-                    TotalCost = r.TotalCost,
-                    PathCoordinates = fullPathCoordinates, // Harita verisini ekle
-
-                    Route = sortedStops.Select(rs => new StationRouteDto
-                    {
-                        StationId = rs.StationId,
-                        StationName = rs.Station?.Name ?? "Bilinmiyor",
-                        Order = rs.Order,
-                        Latitude = rs.Station?.Latitude ?? 0,
-                        Longitude = rs.Station?.Longitude ?? 0
-                    }).ToList()
-                };
-            }).ToList();
+            // 5) DTO'ya Çevir (result.Routes kullanıyoruz)
+            var response = result.Routes.Select(r => MapToDto(r)).ToList();
 
             return Ok(response);
         }
 
-        private static string Normalize(string s)
-            => (s ?? "").Trim().ToLowerInvariant()
-                .Replace("ı", "i").Replace("İ", "i").Replace("ç", "c")
-                .Replace("ğ", "g").Replace("ö", "o").Replace("ş", "s").Replace("ü", "u");
-
-
-        [HttpPost("plan-dynamic")] // Eski bir endpoint, gerekirse bunu da güncelleyebilirsin ama asıl kullanılan plan-routes
+        [HttpPost("plan-dynamic")]
         public IActionResult PlanDynamicRoutes([FromBody] bool unlimitedVehicles)
         {
             var dbRequests = _db.CargoRequests.ToList();
             if (!dbRequests.Any()) return BadRequest(new { message = "No cargo requests found." });
 
-            // Varsayılan strateji (0) ile çalışır
-            var routes = _routeService.PlanRoutes(dbRequests, unlimitedVehicles, 0);
+            // Varsayılan strateji (0)
+            var result = _routeService.PlanRoutes(dbRequests, unlimitedVehicles, 0);
 
-            _db.Routes.AddRange(routes);
+            _db.Routes.AddRange(result.Routes);
             _db.SaveChanges();
 
-            // (Mapping kısmı RunScenario ile aynı...)
-            // Kısaltmak için burayı detaylandırmıyorum, asıl önemli olan alttaki metod
-            return Ok();
+            return Ok(result.Routes.Select(r => MapToDto(r)).ToList());
         }
 
         [HttpPost("plan-routes")]
         public IActionResult PlanRoutes([FromBody] PlanRequestDto dto)
         {
-            // 1. Veritabanındaki "İşlenmemiş" (Bekleyen) Kargoları Çek
+            // 1. Bekleyen kargoları çek
             var pendingRequests = _db.CargoRequests.Include(c => c.Station).ToList();
 
             if (!pendingRequests.Any())
@@ -150,64 +93,80 @@ namespace yazlab3.web.Controllers
                 return BadRequest(new { message = "Planlanacak kargo talebi bulunamadı. Önce kullanıcı panelinden kargo ekleyin." });
             }
 
-            // 2. Algoritmayı Çalıştır
-            // DÜZELTME: dto.Strategy parametresini servise iletiyoruz
-            var routes = _routeService.PlanRoutes(pendingRequests, dto.UnlimitedVehicles, dto.Strategy);
+            // 2. Algoritmayı Çalıştır (DÜZELTME: dto.Strategy eklendi)
+            var result = _routeService.PlanRoutes(pendingRequests, dto.UnlimitedVehicles, dto.Strategy);
 
-            // 3. Sonuçları Veritabanına Kaydet
-            // _db.Routes.RemoveRange(_db.Routes); 
-            _db.Routes.AddRange(routes);
+            // 3. Sonuçları Kaydet (Sadece rotalar)
+            _db.Routes.AddRange(result.Routes);
             _db.SaveChanges();
 
-            // 4. Frontend İçin DTO'ya Çevir
-            var response = routes.Select(r =>
+            // 4. Frontend İçin Cevap (Rotalar + Reddedilenler)
+            var response = new
             {
-                var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
-                var fullPathCoordinates = new List<double[]>();
-
-                // A. Path from Depot (99) to First Stop
-                if (sortedStops.Any())
+                routes = result.Routes.Select(r => MapToDto(r)).ToList(),
+                rejectedCargos = result.RejectedRequests.Select(req => new
                 {
-                    var first = sortedStops.First();
-                    var startPath = _routeService.GetPathCoordinates(99, first.StationId);
-                    fullPathCoordinates.AddRange(startPath);
-                }
-
-                // B. Path between subsequent stops
-                for (int i = 0; i < sortedStops.Count - 1; i++)
-                {
-                    var current = sortedStops[i];
-                    var next = sortedStops[i + 1];
-                    var segment = _routeService.GetPathCoordinates(current.StationId, next.StationId);
-                    fullPathCoordinates.AddRange(segment);
-                }
-
-                return new UserRouteResponseDto
-                {
-                    VehicleId = r.VehicleId,
-                    TotalDistanceKm = r.TotalDistanceKm,
-                    TotalCost = r.TotalCost,
-                    PathCoordinates = fullPathCoordinates, // Harita verisi
-
-                    Route = sortedStops.Select(rs => new StationRouteDto
-                    {
-                        StationName = rs.Station?.Name ?? "Bilinmiyor",
-                        Order = rs.Order,
-                        Latitude = rs.Station?.Latitude ?? 0,
-                        Longitude = rs.Station?.Longitude ?? 0
-                    }).ToList()
-                };
-            }).ToList();
+                    stationName = req.Station?.Name ?? "Bilinmiyor",
+                    cargoCount = req.CargoCount,
+                    weight = req.TotalWeightKg,
+                    reason = "Kapasite Yetersiz"
+                }).ToList()
+            };
 
             return Ok(response);
         }
+
+        // --- YARDIMCI METOT (Kod Tekrarını Önlemek İçin) ---
+        private UserRouteResponseDto MapToDto(Route r)
+        {
+            var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
+            var fullPathCoordinates = new List<double[]>();
+
+            // A. Depo (99) -> İlk Durak
+            if (sortedStops.Any())
+            {
+                var first = sortedStops.First();
+                var startPath = _routeService.GetPathCoordinates(99, first.StationId);
+                fullPathCoordinates.AddRange(startPath);
+            }
+
+            // B. Duraklar Arası
+            for (int i = 0; i < sortedStops.Count - 1; i++)
+            {
+                var cur = sortedStops[i];
+                var next = sortedStops[i + 1];
+                var seg = _routeService.GetPathCoordinates(cur.StationId, next.StationId);
+                fullPathCoordinates.AddRange(seg);
+            }
+
+            return new UserRouteResponseDto
+            {
+                VehicleId = r.VehicleId,
+                TotalDistanceKm = r.TotalDistanceKm,
+                TotalCost = r.TotalCost,
+                PathCoordinates = fullPathCoordinates,
+                Route = sortedStops.Select(rs => new StationRouteDto
+                {
+                    StationId = rs.StationId,
+                    StationName = rs.Station?.Name ?? "Bilinmiyor",
+                    Order = rs.Order,
+                    Latitude = rs.Station?.Latitude ?? 0,
+                    Longitude = rs.Station?.Longitude ?? 0
+                }).ToList()
+            };
+        }
+
+        private static string Normalize(string s)
+            => (s ?? "").Trim().ToLowerInvariant()
+                .Replace("ı", "i").Replace("İ", "i").Replace("ç", "c")
+                .Replace("ğ", "g").Replace("ö", "o").Replace("ş", "s").Replace("ü", "u");
 
         // --- GÜNCELLENMİŞ DTO SINIFLARI ---
         public class PlanRequestDto
         {
             public bool UnlimitedVehicles { get; set; }
 
-            // YENİ: Strateji Parametresi (0: Weight, 1: Count)
+            // EKLENDİ: Strateji Parametresi
             public int Strategy { get; set; } = 0;
         }
     }
@@ -217,7 +176,7 @@ namespace yazlab3.web.Controllers
         public int ScenarioId { get; set; }
         public bool UnlimitedVehicles { get; set; }
 
-        // YENİ: Strateji Parametresi
+        // EKLENDİ: Strateji Parametresi
         public int Strategy { get; set; } = 0;
     }
 
