@@ -1,4 +1,5 @@
-﻿using yazlab3.web.Models;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using yazlab3.web.Models;
 
 public class Route
 {
@@ -11,4 +12,7 @@ public class Route
     public double TotalCost { get; set; }
 
     public ICollection<RouteStation> RouteStations { get; set; }
+
+    [NotMapped]
+    public List<double[]> PathCoordinates { get; set; } = new List<double[]>();
 }
