@@ -187,49 +187,70 @@ namespace yazlab3.web.Controllers
             return Ok(response);
         }
 
-        [HttpPost("plan-routes")]
+        [HttpPost("plan-routes")] // Ensure this matches your frontend call
         public IActionResult PlanRoutes([FromBody] PlanRequestDto dto)
         {
-            // 1. Veritabanındaki "İşlenmemiş" (Bekleyen) Kargoları Çek
-            // PDF İsteri: "Rota planlaması yaparken bir sonraki gün istasyondaki kargo sayısı..." 
-            // Ancak demo için tümünü çekiyoruz.
-            var pendingRequests = _db.CargoRequests.ToList();
+            // 1. Fetch pending cargo requests
+            var pendingRequests = _db.CargoRequests.Include(c => c.Station).ToList();
 
             if (!pendingRequests.Any())
             {
-                return BadRequest(new { message = "Planlanacak kargo talebi bulunamadı. Önce kullanıcı panelinden kargo ekleyin." });
+                return BadRequest(new { message = "Planlanacak kargo talebi bulunamadı." });
             }
 
-            // 2. Algoritmayı Çalıştır
-            // unLimitedVehicles = true ise Sınırsız Araç Problemi 
-            // unLimitedVehicles = false ise Belirli Sayıda Araç Problemi 
+            // 2. Run the Algorithm
             var routes = _routeService.PlanRoutes(pendingRequests, dto.UnlimitedVehicles);
 
-                        // 3. Sonuçları Veritabanına Kaydet (PDF İsteri: "Tüm seferler kaydedilip görüntülenmelidir" [cite: 27])
-                        // Önce eski planları temizleyebilir veya tarihçeli tutabilirsin. Şimdilik temizleyip ekliyoruz.
-                        // _db.Routes.RemoveRange(_db.Routes); 
-                        // _db.SaveChanges();
-
+            // 3. Save to DB (Optional but recommended)
+            // _db.Routes.RemoveRange(_db.Routes); // Optional: Clear old routes
             _db.Routes.AddRange(routes);
             _db.SaveChanges();
 
-            // 4. Frontend İçin DTO'ya Çevir (Senaryo çıktısı ile aynı format)
-            var response = routes.Select(r => new UserRouteResponseDto
+            // 4. Map to DTO for Frontend
+            var response = routes.Select(r =>
             {
-                VehicleId = r.VehicleId,
-                TotalDistanceKm = r.TotalDistanceKm,
-                TotalCost = r.TotalCost,
-                PathCoordinates = r.RouteStations
-                                   .OrderBy(rs => rs.Order)
-                                   .SelectMany(rs => _routeService.GetPathCoordinates(99, rs.StationId)) // Basitleştirilmiş path
-                                   .ToList(),
-                Route = r.RouteStations.Select(rs => new StationRouteDto
+                // Sort stops strictly by Order
+                var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
+
+                // Initialize the path list
+                var fullPathCoordinates = new List<double[]>();
+
+                // A. Path from Depot (99) to First Stop
+                if (sortedStops.Any())
                 {
-                    StationName = rs.Station?.Name ?? "Bilinmiyor",
-                    Order = rs.Order,
-                    Latitude = rs.Station?.Latitude ?? 0,
-                    Longitude = rs.Station?.Longitude ?? 0
-                }).ToList()
+                    var first = sortedStops.First();
+                    // 99 is Umuttepe ID. Ensure this ID exists in your DB or change it.
+                    var startPath = _routeService.GetPathCoordinates(99, first.StationId);
+                    fullPathCoordinates.AddRange(startPath);
+                }
+
+                // B. Path between subsequent stops
+                for (int i = 0; i < sortedStops.Count - 1; i++)
+                {
+                    var current = sortedStops[i];
+                    var next = sortedStops[i + 1];
+                    var segment = _routeService.GetPathCoordinates(current.StationId, next.StationId);
+                    fullPathCoordinates.AddRange(segment);
+                }
+
+                return new UserRouteResponseDto
+                {
+                    VehicleId = r.VehicleId,
+                    TotalDistanceKm = r.TotalDistanceKm,
+                    TotalCost = r.TotalCost,
+                    // Pass the detailed coordinates to frontend
+                    PathCoordinates = fullPathCoordinates,
+
+                    // Map stops to DTO
+                    Route = sortedStops.Select(rs => new StationRouteDto
+                    {
+                        StationId = rs.StationId,
+                        StationName = rs.Station?.Name ?? "Bilinmiyor",
+                        Order = rs.Order,
+                        Latitude = rs.Station?.Latitude ?? 0,
+                        Longitude = rs.Station?.Longitude ?? 0
+                    }).ToList()
+                };
             }).ToList();
 
             return Ok(response);
