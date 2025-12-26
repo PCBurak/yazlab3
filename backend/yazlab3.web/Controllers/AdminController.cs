@@ -116,27 +116,20 @@ namespace yazlab3.web.Controllers
             return Ok(response);
         }
 
-        // --- YARDIMCI METOT (Kod Tekrarını Önlemek İçin) ---
         private UserRouteResponseDto MapToDto(Route r)
         {
             var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
             var fullPathCoordinates = new List<double[]>();
 
-            // A. Depo (99) -> İlk Durak
+            // Koordinat hesaplama kısımları aynı...
             if (sortedStops.Any())
             {
                 var first = sortedStops.First();
-                var startPath = _routeService.GetPathCoordinates(99, first.StationId);
-                fullPathCoordinates.AddRange(startPath);
-            }
-
-            // B. Duraklar Arası
-            for (int i = 0; i < sortedStops.Count - 1; i++)
-            {
-                var cur = sortedStops[i];
-                var next = sortedStops[i + 1];
-                var seg = _routeService.GetPathCoordinates(cur.StationId, next.StationId);
-                fullPathCoordinates.AddRange(seg);
+                fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(99, first.StationId));
+                for (int i = 0; i < sortedStops.Count - 1; i++)
+                {
+                    fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(sortedStops[i].StationId, sortedStops[i + 1].StationId));
+                }
             }
 
             return new UserRouteResponseDto
@@ -151,7 +144,19 @@ namespace yazlab3.web.Controllers
                     StationName = rs.Station?.Name ?? "Bilinmiyor",
                     Order = rs.Order,
                     Latitude = rs.Station?.Latitude ?? 0,
-                    Longitude = rs.Station?.Longitude ?? 0
+                    Longitude = rs.Station?.Longitude ?? 0,
+
+                    LoadedCargos = _db.CargoRequests
+                        .Where(c => r.ExactCargoIds.Contains(c.Id) && c.StationId == rs.StationId)
+                        .Select(c => new CargoDetailDto
+                        {
+                            CargoId = c.Id,
+                            Count = c.CargoCount,
+                            Weight = c.TotalWeightKg,
+                            RequestDate = c.RequestDate
+                        })
+                        .ToList()
+
                 }).ToList()
             };
         }

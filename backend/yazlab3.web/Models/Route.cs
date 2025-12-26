@@ -15,4 +15,9 @@ public class Route
 
     [NotMapped]
     public List<double[]> PathCoordinates { get; set; } = new List<double[]>();
+
+
+    // --- YENİ EKLENEN: Bu araca tam olarak hangi kargolar yüklendi? ---
+    [NotMapped]
+    public List<int> ExactCargoIds { get; set; } = new List<int>();
 }

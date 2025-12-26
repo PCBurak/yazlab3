@@ -179,7 +179,8 @@ namespace yazlab3.web.Services
                     VehicleId = planned.Vehicle.Id,
                     Vehicle = planned.Vehicle,
                     TotalDistanceKm = Math.Round(totalDist, 2),
-                    PathCoordinates = fullPathCoordinates
+                    PathCoordinates = fullPathCoordinates,
+                    ExactCargoIds = planned.Stops.SelectMany(s => s.IncludedRequestIds).ToList()
                 };
 
                 route.TotalCost = _costService.CalculateRouteCost(route.TotalDistanceKm, planned.Vehicle.IsRented);

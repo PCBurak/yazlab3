@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import "../styles/theme.css";
 
-// --- Leaflet Fix ---
+// --- Leaflet İkon Ayarı ---
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -17,12 +17,18 @@ const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#06b6d4'
 
 export default function RoutePlanning({ onLogout }) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null); // { routes: [], rejectedCargos: [] }
-  const [activeTab, setActiveTab] = useState("map"); // 'map' veya 'details'
+  const [result, setResult] = useState(null);
+  const [activeTab, setActiveTab] = useState("map");
+  const [expandedVehicleId, setExpandedVehicleId] = useState(null);
+  const [selectedCargo, setSelectedCargo] = useState(null);
   
-  // Konfigürasyon State'i
   const [mode, setMode] = useState("unlimited");
   const [strategy, setStrategy] = useState(0);
+
+  const toggleExpand = (id) => {
+    if (expandedVehicleId === id) setExpandedVehicleId(null);
+    else setExpandedVehicleId(id);
+  };
 
   async function handlePlanRoutes() {
     setLoading(true);
@@ -30,19 +36,14 @@ export default function RoutePlanning({ onLogout }) {
       const response = await fetch("http://localhost:5014/api/admin/plan-routes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            unlimitedVehicles: mode === "unlimited",
-            strategy: strategy 
-        }),
+        body: JSON.stringify({ unlimitedVehicles: mode === "unlimited", strategy: strategy }),
       });
-
       const data = await response.json();
       if (!response.ok) {
-        alert(data.message || "Planlama hatası");
+        alert(data.message || "Hata");
       } else {
-        // Backend artık { routes: [...], rejectedCargos: [...] } dönüyor
         setResult(data);
-        setActiveTab("map"); // Hesaplayınca haritayı aç
+        setActiveTab("details");
       }
     } catch (err) {
       alert("Sunucu hatası: " + err);
@@ -50,233 +51,234 @@ export default function RoutePlanning({ onLogout }) {
     setLoading(false);
   }
 
-  // --- İSTATİSTİKLER ---
   const routes = result?.routes || [];
   const rejected = result?.rejectedCargos || [];
-  
   const totalCost = routes.reduce((acc, r) => acc + r.totalCost, 0);
   const totalVehicles = routes.length;
-  const totalDistance = routes.reduce((acc, r) => acc + r.totalDistanceKm, 0);
   const totalRejectedWeight = rejected.reduce((acc, r) => acc + r.weight, 0);
 
-  // --- Stil Yardımcıları ---
-  const getCardStyle = (isSelected) => ({
-    flex: 1, padding: "15px", borderRadius: "10px",
+  const getBigCardStyle = (isSelected) => ({
+    flex: 1,
+    padding: "25px",
+    borderRadius: "12px",
     border: isSelected ? "2px solid #4f46e5" : "1px solid #e2e8f0",
     backgroundColor: isSelected ? "#eef2ff" : "white",
-    cursor: "pointer", transition: "all 0.2s", opacity: loading ? 0.7 : 1,
-    display: "flex", alignItems: "center", gap: "10px"
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    position: "relative",
+    minHeight: "120px"
   });
 
   return (
     <div className="dashboard-container">
       <aside className="modern-sidebar">
-        <div className="sidebar-logo"><div className="logo-icon">L</div><span>LOGI-TECH</span></div>
+        <div className="sidebar-logo">
+          <div className="logo-icon">L</div>
+          <span>LOGI-TECH</span>
+        </div>
         <Sidebar role="Admin" onLogout={onLogout} />
       </aside>
 
       <main className="main-content">
         <header className="content-header">
           <div>
-            <h1>Rota Optimizasyonu</h1>
-            <p className="subtitle">Yük dağıtımı, rota planlama ve filo yönetimi.</p>
+            <h1>Rota Yönetimi</h1>
+            <p className="subtitle">Araç yükleme detayları ve rota analizi.</p>
           </div>
         </header>
 
-        {/* --- 1. AYARLAR PANELİ (Kompakt Tasarım) --- */}
-        <div className="card" style={{ marginBottom: "20px", padding: "20px" }}>
-            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px"}}>
-                <h3 style={{fontSize: "16px", margin: 0, color: "#334155"}}><i className="fas fa-cog"></i> Planlama Ayarları</h3>
+        {/* --- AYARLAR PANELİ --- */}
+        <div className="card" style={{ marginBottom: "20px", padding: "30px" }}>
+          <h3 style={{ fontSize: "18px", color: "#1e293b", marginBottom: "20px", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>
+            <i className="fas fa-sliders-h" style={{ marginRight: 10, color: "#64748b" }}></i> Planlama Modu
+          </h3>
+          
+          <div style={{ display: "flex", gap: "25px", alignItems: "flex-start" }}>
+            {/* Sınırsız Araç Kartı */}
+            <div style={getBigCardStyle(mode === "unlimited")} onClick={() => setMode("unlimited")}>
+              <div style={{ fontSize: "32px", color: mode === "unlimited" ? "#4f46e5" : "#94a3b8" }}>
+                <i className="fas fa-infinity"></i>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <strong style={{ display: "block", fontSize: "16px", color: "#1e293b" }}>Sınırsız Araç</strong>
+                <span style={{ fontSize: "13px", color: "#64748b" }}>Maliyet Odaklı • Otomatik Kiralama</span>
+              </div>
+              {mode === "unlimited" && <i className="fas fa-check-circle" style={{ position: "absolute", top: 10, right: 10, color: "#4f46e5", fontSize: "20px" }}></i>}
             </div>
-            
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-                {/* Sol: Mod Seçimi */}
-                <div style={{ flex: 2, display: "flex", gap: "10px" }}>
-                    <div style={getCardStyle(mode === "unlimited")} onClick={() => setMode("unlimited")}>
-                        <i className="fas fa-infinity" style={{fontSize: "20px", color: mode==="unlimited"?"#4f46e5":"#94a3b8"}}></i>
-                        <div><strong style={{display:"block", fontSize:"14px"}}>Sınırsız Araç</strong><span style={{fontSize:"11px", color:"#64748b"}}>Maliyet Odaklı</span></div>
-                    </div>
-                    <div style={getCardStyle(mode === "fixed")} onClick={() => setMode("fixed")}>
-                        <i className="fas fa-truck-loading" style={{fontSize: "20px", color: mode==="fixed"?"#4f46e5":"#94a3b8"}}></i>
-                        <div><strong style={{display:"block", fontSize:"14px"}}>Sabit Filo (3)</strong><span style={{fontSize:"11px", color:"#64748b"}}>Kapasite Odaklı</span></div>
-                    </div>
-                </div>
 
-                {/* Orta: Strateji (Sadece Fixed ise) */}
-                {mode === "fixed" && (
-                    <div style={{ flex: 1.5, display: "flex", gap: "5px", animation: "fadeIn 0.3s" }}>
-                        <button className={`modern-btn ${strategy===0?'active':''}`} onClick={()=>setStrategy(0)} style={{flex:1, fontSize:"12px", background: strategy===0?"#4f46e5":"#f1f5f9", color:strategy===0?"white":"#475569"}}>
-                            Max Ağırlık
-                        </button>
-                        <button className={`modern-btn ${strategy===1?'active':''}`} onClick={()=>setStrategy(1)} style={{flex:1, fontSize:"12px", background: strategy===1?"#4f46e5":"#f1f5f9", color:strategy===1?"white":"#475569"}}>
-                            Max Adet
-                        </button>
-                    </div>
-                )}
-
-                {/* Sağ: Buton */}
-                <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
-                    <button className="modern-submit-btn" onClick={handlePlanRoutes} disabled={loading} style={{width: "100%", height: "100%"}}>
-                        {loading ? <i className="fas fa-spinner fa-spin"></i> : <span><i className="fas fa-route"></i> Hesapla</span>}
-                    </button>
+            {/* Sabit Filo Kartı */}
+            <div style={getBigCardStyle(mode === "fixed")} onClick={() => setMode("fixed")}>
+              <div style={{ fontSize: "32px", color: mode === "fixed" ? "#4f46e5" : "#94a3b8" }}>
+                <i className="fas fa-truck-loading"></i>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <strong style={{ display: "block", fontSize: "16px", color: "#1e293b" }}>Sabit Filo (3 Araç)</strong>
+                <span style={{ fontSize: "13px", color: "#64748b" }}>Kapasite Odaklı • Kiralama Yok</span>
+              </div>
+              {mode === "fixed" && <i className="fas fa-check-circle" style={{ position: "absolute", top: 10, right: 10, color: "#4f46e5", fontSize: "20px" }}></i>}
+              
+              {mode === "fixed" && (
+                <div style={{ marginTop: "20px", width: "100%", animation: "fadeIn 0.4s ease" }}>
+                  <div style={{ height: "1px", background: "#cbd5e1", marginBottom: "15px" }}></div>
+                  <label style={{ display: "block", marginBottom: "10px", fontSize: "13px", fontWeight: "600", color: "#475569", textAlign: "center" }}>Öncelik Stratejisi</label>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button className="modern-btn" onClick={(e) => { e.stopPropagation(); setStrategy(0); }} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", background: strategy === 0 ? "#4f46e5" : "white", color: strategy === 0 ? "white" : "#64748b", fontWeight: "600", fontSize: "12px" }}>Max Ağırlık</button>
+                    <button className="modern-btn" onClick={(e) => { e.stopPropagation(); setStrategy(1); }} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", background: strategy === 1 ? "#4f46e5" : "white", color: strategy === 1 ? "white" : "#64748b", fontWeight: "600", fontSize: "12px" }}>Max Adet</button>
+                  </div>
                 </div>
+              )}
             </div>
+          </div>
+
+          <div style={{ textAlign: "right", marginTop: "25px" }}>
+            <button className="modern-submit-btn" style={{ width: "200px", height: "50px", fontSize: "16px", borderRadius: "8px" }} onClick={handlePlanRoutes} disabled={loading}>
+              {loading ? <span><i className="fas fa-spinner fa-spin"></i> Hesaplanıyor...</span> : <span><i className="fas fa-rocket" style={{ marginRight: 8 }}></i> Rotayı Hesapla</span>}
+            </button>
+          </div>
         </div>
 
-        {/* --- 2. SONUÇ ALANI (Varsa Göster) --- */}
+        {/* --- SONUÇ KARTI --- */}
         {result && (
-            <>
-                {/* ÖZET KARTLARI */}
-                <section className="stats-grid" style={{marginBottom: "20px"}}>
-                    <div className="card stat-card"><div className="p-4"><div className="stat-info"><p>Araç Sayısı</p><h3>{totalVehicles}</h3></div><div className="stat-icon purple"><i className="fas fa-truck"></i></div></div></div>
-                    <div className="card stat-card"><div className="p-4"><div className="stat-info"><p>Toplam Maliyet</p><h3>₺{totalCost.toFixed(0)}</h3></div><div className="stat-icon orange"><i className="fas fa-lira-sign"></i></div></div></div>
-                    
-                    {/* Eğer kalan yük varsa Kırmızı Kart Göster */}
-                    {rejected.length > 0 ? (
-                        <div className="card stat-card" style={{borderLeft: "4px solid #ef4444"}}>
-                            <div className="p-4">
-                                <div className="stat-info">
-                                    <p style={{color: "#ef4444", fontWeight: "bold"}}>Taşınamayan Yük</p>
-                                    <h3 style={{color: "#ef4444"}}>{totalRejectedWeight} kg</h3>
-                                </div>
-                                <div className="stat-icon" style={{background:"#fee2e2", color:"#ef4444"}}><i className="fas fa-times-circle"></i></div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="card stat-card"><div className="p-4"><div className="stat-info"><p>Başarı Oranı</p><h3>%100</h3></div><div className="stat-icon green"><i className="fas fa-check"></i></div></div></div>
-                    )}
-                </section>
+          <div className="card" style={{ padding: 0, overflow: "hidden", height: "600px", display: "flex", flexDirection: "column", position: "relative", isolation: "isolate" }}>
+            
+            {/* ÜST KATMAN: Sekmeler */}
+            <div style={{ flex: "0 0 auto", background: "white", zIndex: 20, position: "relative", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", borderBottom: "1px solid #e2e8f0" }}>
+                <button onClick={() => setActiveTab("map")} style={{ flex: 1, padding: "18px", border: "none", background: "transparent", borderBottom: activeTab === "map" ? "3px solid #4f46e5" : "3px solid transparent", color: activeTab === "map" ? "#4f46e5" : "#94a3b8", fontWeight: activeTab === "map" ? "700" : "500", fontSize: "15px", cursor: "pointer", transition: "all 0.2s" }}>
+                  <i className="fas fa-map-marked-alt" style={{ marginRight: 8 }}></i> Harita Görünümü
+                </button>
+                <button onClick={() => setActiveTab("details")} style={{ flex: 1, padding: "18px", border: "none", background: "transparent", borderBottom: activeTab === "details" ? "3px solid #4f46e5" : "3px solid transparent", color: activeTab === "details" ? "#4f46e5" : "#94a3b8", fontWeight: activeTab === "details" ? "700" : "500", fontSize: "15px", cursor: "pointer", transition: "all 0.2s" }}>
+                  <i className="fas fa-boxes" style={{ marginRight: 8 }}></i> Yük & Araç Detayları
+                </button>
+              </div>
 
-                {/* --- SEKMELİ YAPI (TABS) --- */}
-                <div className="card" style={{ padding: "0", overflow: "hidden" }}>
-                    {/* Tab Başlıkları */}
-                    <div style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                        <button 
-                            onClick={() => setActiveTab("map")}
-                            style={{
-                                flex: 1, padding: "15px", border: "none", background: activeTab === "map" ? "white" : "transparent",
-                                borderBottom: activeTab === "map" ? "3px solid #4f46e5" : "none",
-                                fontWeight: activeTab === "map" ? "600" : "400", color: activeTab === "map" ? "#4f46e5" : "#64748b",
-                                cursor: "pointer", transition: "all 0.2s"
-                            }}
-                        >
-                            <i className="fas fa-map-marked-alt" style={{marginRight:8}}></i> Rota Haritası
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab("details")}
-                            style={{
-                                flex: 1, padding: "15px", border: "none", background: activeTab === "details" ? "white" : "transparent",
-                                borderBottom: activeTab === "details" ? "3px solid #4f46e5" : "none",
-                                fontWeight: activeTab === "details" ? "600" : "400", color: activeTab === "details" ? "#4f46e5" : "#64748b",
-                                cursor: "pointer", transition: "all 0.2s"
-                            }}
-                        >
-                            <i className="fas fa-list-ul" style={{marginRight:8}}></i> Detaylar & Kalanlar 
-                            {rejected.length > 0 && <span className="badge" style={{marginLeft:5, background:"#ef4444", color:"white", fontSize:"10px", padding:"2px 6px", borderRadius:"10px"}}>{rejected.length}</span>}
-                        </button>
-                    </div>
-
-                    {/* SEKME 1: HARİTA */}
-                    {activeTab === "map" && (
-                        <div style={{ height: "600px", position: "relative" }}>
-                            <MapContainer center={[40.765, 29.940]} zoom={10} style={{ height: "100%", width: "100%" }}>
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                {routes.map((route, idx) => {
-                                    const color = COLORS[idx % COLORS.length];
-                                    const stops = route.route || [];
-                                    return (
-                                        <React.Fragment key={idx}>
-                                            {route.pathCoordinates && <Polyline positions={route.pathCoordinates} pathOptions={{ color, weight: 5, opacity: 0.8 }} />}
-                                            {stops.map((stop, i) => (
-                                                <Marker key={i} position={[stop.latitude, stop.longitude]}>
-                                                    <Popup>
-                                                        <strong style={{color}}>{stop.stationName}</strong><br/>
-                                                        Araç: #{route.vehicleId}<br/>
-                                                        Sıra: {stop.order}
-                                                    </Popup>
-                                                </Marker>
-                                            ))}
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </MapContainer>
-                        </div>
-                    )}
-
-                    {/* SEKME 2: DETAY TABLOLARI */}
-                    {activeTab === "details" && (
-                        <div style={{ padding: "20px", animation: "fadeIn 0.3s" }}>
-                            
-                            {/* TABLO 1: YÜKLENEN ROTALAR */}
-                            <h4 style={{marginTop: 0, color: "#1e293b", borderBottom:"1px solid #eee", paddingBottom: "10px"}}>
-                                <i className="fas fa-truck-loading" style={{color:"#4f46e5", marginRight:8}}></i> 
-                                Araç Yükleme Planı
-                            </h4>
-                            <table className="modern-table" style={{marginBottom: "30px"}}>
-                                <thead>
-                                    <tr>
-                                        <th>Araç ID</th>
-                                        <th>Rota (Duraklar)</th>
-                                        <th>Maliyet</th>
-                                        <th>Mesafe</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {routes.map((r, i) => (
-                                        <tr key={i}>
-                                            <td style={{fontWeight:"bold", color: COLORS[i % COLORS.length]}}>#{r.vehicleId}</td>
-                                            <td>
-                                                {r.route.map((s, idx) => (
-                                                    <span key={idx}>
-                                                        {idx > 0 && " ➝ "}
-                                                        <span style={{borderBottom: `1px dashed ${COLORS[i % COLORS.length]}`}}>{s.stationName}</span>
-                                                    </span>
-                                                ))}
-                                            </td>
-                                            <td>₺{r.totalCost.toFixed(2)}</td>
-                                            <td>{r.totalDistanceKm.toFixed(1)} km</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-
-                            {/* TABLO 2: TAŞINAMAYANLAR (Sadece varsa göster) */}
-                            {rejected.length > 0 && (
-                                <div style={{marginTop: "30px"}}>
-                                    <h4 style={{color: "#ef4444", borderBottom:"1px solid #fee2e2", paddingBottom: "10px"}}>
-                                        <i className="fas fa-exclamation-triangle" style={{marginRight:8}}></i> 
-                                        Kapasite Dışı Kalan Kargolar (Şubede Bekliyor)
-                                    </h4>
-                                    <table className="modern-table" style={{border: "1px solid #fee2e2"}}>
-                                        <thead style={{background: "#fef2f2"}}>
-                                            <tr>
-                                                <th style={{color:"#b91c1c"}}>İstasyon</th>
-                                                <th style={{color:"#b91c1c"}}>Kargo Sayısı</th>
-                                                <th style={{color:"#b91c1c"}}>Toplam Ağırlık</th>
-                                                <th style={{color:"#b91c1c"}}>Durum</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {rejected.map((item, i) => (
-                                                <tr key={i}>
-                                                    <td style={{fontWeight:"bold"}}>{item.stationName}</td>
-                                                    <td>{item.cargoCount} Adet</td>
-                                                    <td>{item.weight} kg</td>
-                                                    <td><span className="badge" style={{background:"#fee2e2", color:"#b91c1c"}}>Taşınmadı</span></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
+              {activeTab === "map" && (
+                <div style={{ padding: "10px 20px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", gap: 15, alignItems: "center" }}>
+                  <span className="badge" style={{ background: "#dbeafe", color: "#1e40af" }}>Araç: {totalVehicles}</span>
+                  <span className="badge" style={{ background: "#ffedd5", color: "#9a3412" }}>Maliyet: ₺{totalCost.toFixed(0)}</span>
+                  {totalRejectedWeight > 0 && <span className="badge" style={{ background: "#fee2e2", color: "#b91c1c" }}><i className="fas fa-exclamation-triangle"></i> Kalan: {totalRejectedWeight} kg</span>}
                 </div>
-            </>
+              )}
+            </div>
+
+            {/* ALT KATMAN: İçerik */}
+            <div style={{ flex: "1 1 auto", position: "relative", zIndex: 1, overflowY: activeTab === "details" ? "auto" : "hidden" }}>
+              
+              {/* HARİTA */}
+              {activeTab === "map" && (
+                <MapContainer center={[40.765, 29.940]} zoom={10} style={{ height: "100%", width: "100%", zIndex: 0 }}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  {routes.map((route, idx) => (
+                    <React.Fragment key={idx}>
+                      {route.pathCoordinates && <Polyline positions={route.pathCoordinates} pathOptions={{ color: COLORS[idx % COLORS.length], weight: 5 }} />}
+                      {route.route.map((stop, i) => (
+                        <Marker key={i} position={[stop.latitude, stop.longitude]}>
+                          <Popup><strong>{stop.stationName}</strong><br />Araç: #{route.vehicleId}</Popup>
+                        </Marker>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </MapContainer>
+              )}
+
+              {/* DETAYLAR */}
+              {activeTab === "details" && (
+                <div style={{ padding: "20px", background: "#f8fafc" }}>
+                  <div style={{ marginBottom: 20, display: "flex", gap: 15 }}>
+                    <div className="badge" style={{ background: "#dbeafe", color: "#1e40af", padding: "12px 20px", borderRadius: 8, fontSize: "14px" }}>Toplam Araç: <strong>{totalVehicles}</strong></div>
+                    <div className="badge" style={{ background: "#ffedd5", color: "#9a3412", padding: "12px 20px", borderRadius: 8, fontSize: "14px" }}>Toplam Maliyet: <strong>₺{totalCost.toFixed(2)}</strong></div>
+                    {totalRejectedWeight > 0 && <div className="badge" style={{ background: "#fee2e2", color: "#b91c1c", padding: "12px 20px", borderRadius: 8, border: "1px solid #fca5a5", fontSize: "14px" }}><i className="fas fa-exclamation-triangle" style={{ marginRight: 5 }}></i>Taşınamayan Yük: <strong>{totalRejectedWeight} Kg</strong></div>}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                    {routes.map((vehicle, idx) => {
+                      const isExpanded = expandedVehicleId === vehicle.vehicleId;
+                      const color = COLORS[idx % COLORS.length];
+                      const totalLoadCount = vehicle.route.reduce((acc, stop) => acc + (stop.loadedCargos?.reduce((s, c) => s + c.count, 0) || 0), 0);
+                      const totalLoadWeight = vehicle.route.reduce((acc, stop) => acc + (stop.loadedCargos?.reduce((s, c) => s + c.weight, 0) || 0), 0);
+
+                      return (
+                        <div key={idx} className="card" style={{ padding: 0, overflow: "hidden", borderLeft: `5px solid ${color}` }}>
+                          <div onClick={() => toggleExpand(vehicle.vehicleId)} style={{ padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", background: "white" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
+                              <div style={{ background: color, color: "white", width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold" }}>{idx + 1}</div>
+                              <div><h4 style={{ margin: 0, color: "#1e293b" }}>Araç #{vehicle.vehicleId}</h4><span style={{ fontSize: "13px", color: "#64748b" }}>{vehicle.totalDistanceKm.toFixed(1)} km • ₺{vehicle.totalCost.toFixed(2)}</span></div>
+                            </div>
+                            <div style={{ textAlign: "right", marginRight: 20 }}><div style={{ fontSize: "12px", color: "#64748b" }}>TOPLAM YÜK</div><div style={{ fontWeight: "bold", color: "#334155" }}>{totalLoadCount} Adet / {totalLoadWeight} Kg</div></div>
+                            <div style={{ color: "#94a3b8" }}><i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`}></i></div>
+                          </div>
+                          {isExpanded && (
+                            <div style={{ borderTop: "1px solid #e2e8f0", background: "#fcfcfc", padding: "20px", animation: "slideDown 0.3s" }}>
+                              <h5 style={{ marginTop: 0, color: "#475569", marginBottom: 15 }}>Durak ve Yük Dağılımı</h5>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {vehicle.route.map((stop, sIdx) => (
+                                  <div key={sIdx} style={{ display: "flex", gap: 15, borderBottom: "1px dashed #e2e8f0", paddingBottom: 10 }}>
+                                    <div style={{ minWidth: "120px" }}><div style={{ fontSize: "11px", color: "#94a3b8" }}>DURAK {stop.order}</div><strong style={{ color: color }}>{stop.stationName}</strong></div>
+                                    <div style={{ flex: 1 }}>
+                                      {stop.loadedCargos && stop.loadedCargos.length > 0 ? (
+                                        <table className="modern-table" style={{ fontSize: "12px", background: "white" }}>
+                                          <thead><tr><th>Kargo ID</th><th>Giriş Tarihi</th><th>Adet</th><th>Ağırlık</th><th>Detay</th></tr></thead>
+                                          <tbody>
+                                            {stop.loadedCargos.map((cargo, cIdx) => (
+                                              <tr key={cIdx} className="cargo-row" onClick={() => setSelectedCargo({ ...cargo, stationName: stop.stationName, vehicleId: vehicle.vehicleId })}>
+                                                <td>#{cargo.cargoId}</td><td>{new Date(cargo.requestDate).toLocaleDateString()}</td><td>{cargo.count}</td><td>{cargo.weight} kg</td><td><i className="fas fa-info-circle" style={{ color: "#3b82f6", cursor: "pointer" }}></i></td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      ) : <span style={{ fontSize: "12px", color: "#94a3b8", fontStyle: "italic" }}>Bu duraktan yük alınmadı.</span>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {rejected.length > 0 && (
+                    <div className="card" style={{ marginTop: 30, borderLeft: "5px solid #ef4444", padding: 20 }}>
+                      <h4 style={{ color: "#ef4444", marginTop: 0 }}><i className="fas fa-exclamation-circle"></i> Kapasite Dışı Kalanlar (Şubede Bekliyor)</h4>
+                      <table className="modern-table"><thead><tr><th>İstasyon</th><th>Kargo Sayısı</th><th>Ağırlık</th><th>Durum</th></tr></thead><tbody>{rejected.map((item, i) => (<tr key={i}><td>{item.stationName}</td><td>{item.cargoCount}</td><td>{item.weight} kg</td><td><span className="badge" style={{ background: "#fee2e2", color: "#b91c1c" }}>Beklemede</span></td></tr>))}</tbody></table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
+
+        {/* --- KARGO DETAY MODALI --- */}
+        {selectedCargo && (
+          <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 10000 }}>
+            <div className="card" style={{ width: "400px", padding: "30px", position: "relative", animation: "slideDown 0.3s" }}>
+              <button onClick={() => setSelectedCargo(null)} style={{ position: "absolute", top: 10, right: 15, border: "none", background: "none", fontSize: "20px", cursor: "pointer", color: "#64748b" }}>&times;</button>
+              <h3 style={{ marginTop: 0, color: "#1e293b", borderBottom: "1px solid #e2e8f0", paddingBottom: 15 }}>Kargo #{selectedCargo.cargoId} Detayı</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 15, marginTop: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#64748b" }}>Alım İstasyonu:</span><strong>{selectedCargo.stationName}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#64748b" }}>Atanan Araç:</span><span className="badge" style={{ background: "#eef2ff", color: "#4f46e5" }}>Araç #{selectedCargo.vehicleId}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "#64748b" }}>Talep Tarihi:</span><strong>{new Date(selectedCargo.requestDate).toLocaleString()}</strong></div>
+                <div style={{ borderTop: "1px dashed #e2e8f0", margin: "10px 0" }}></div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px" }}><span style={{ color: "#64748b" }}>Paket Sayısı:</span><strong>{selectedCargo.count} Adet</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px" }}><span style={{ color: "#64748b" }}>Ağırlık:</span><strong style={{ color: "#0f172a" }}>{selectedCargo.weight} Kg</strong></div>
+              </div>
+              <button onClick={() => setSelectedCargo(null)} className="modern-btn" style={{ width: "100%", marginTop: 25, background: "#f1f5f9", color: "#334155" }}>Kapat</button>
+            </div>
+          </div>
+        )}
+
       </main>
-      
-      <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+      <style>{`
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .cargo-row:hover { background-color: #f8fafc; cursor: pointer; }
+      `}</style>
     </div>
   );
 }
