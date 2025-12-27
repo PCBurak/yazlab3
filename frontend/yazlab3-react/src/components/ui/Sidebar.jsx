@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router-dom"; // Link yerine NavLink kullanmak daha iyi (active class için)
 import "../../styles/sidebar.css";
 
 export default function Sidebar({ role, onLogout }) {
@@ -18,20 +18,51 @@ export default function Sidebar({ role, onLogout }) {
       }}
     >
       {/* Menü elemanlarını kapsayan bu div'e 'flex: 1' veriyoruz.
-         Böylece bu alan kalan tüm boşluğu kaplar ve footer'ı en alta iter.
+          Böylece bu alan kalan tüm boşluğu kaplar ve footer'ı en alta iter.
       */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        
         {/* 👑 ADMIN MENÜSÜ */}
         {isAdmin && (
           <ul className="nav-menu">
             <li className="nav-item">
               <NavLink
                 to="/admin"
-                end
+                end // Sadece tam /admin olduğunda aktif olsun
                 className={({ isActive }) => (isActive ? "active" : "")}
               >
                 <i className="fa-solid fa-chart-pie"></i>
                 <span>Genel Bakış</span>
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink
+                to="/admin/routes"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <i className="fa-solid fa-route"></i>
+                <span>Rota Planlama</span>
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink
+                to="/admin/scenarios"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <i className="fa-solid fa-vial"></i>
+                <span>Senaryo Testi</span>
+              </NavLink>
+            </li>
+
+            <li className="nav-item">
+              <NavLink
+                to="/admin/station-cargos"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <i className="fa-solid fa-dolly"></i>
+                <span>İstasyon Yükleri</span>
               </NavLink>
             </li>
 
@@ -42,26 +73,6 @@ export default function Sidebar({ role, onLogout }) {
               >
                 <i className="fa-solid fa-location-dot"></i>
                 <span>İstasyon Yönetimi</span>
-              </NavLink>
-            </li>
-
-            {/* DÜZELTME: Rota Planlama Linki /admin/routes olmalı */}
-            <li className="nav-item">
-              <NavLink
-                to="/admin/routes"
-                className={({ isActive }) => (isActive ? "active" : "")}
-              >
-                <i className="fa-solid fa-route"></i>
-                <span>Rota Planlama</span>
-              </NavLink>
-            </li>
-            <li className="nav-item">
-              <NavLink
-                to="/admin/station-cargos"
-                className={({ isActive }) => (isActive ? "active" : "")}
-              >
-                <i className="fa-solid fa-dolly"></i>
-                <span>İstasyon Yükleri</span>
               </NavLink>
             </li>
           </ul>

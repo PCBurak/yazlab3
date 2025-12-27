@@ -12,8 +12,6 @@ export default function StationCargos({ onLogout }) {
 
   // 1. Tüm İstasyonları Çek
   useEffect(() => {
-    // Controller yapına göre burası "api/stations" veya "api/cargo/stations" olabilir.
-    // StationController'ın varsa "api/stations" doğrudur.
     fetch("http://localhost:5014/api/stations")
       .then((res) => {
         if(!res.ok) throw new Error("İstasyonlar çekilemedi");
@@ -47,11 +45,6 @@ export default function StationCargos({ onLogout }) {
   return (
     <div className="dashboard-container">
       
-      {/* --- DÜZELTME BAŞLANGICI --- */}
-      {/* Diğer sayfalardaki (AdminDashboard vb.) yapıya sadık kalarak
-          Sidebar'ı 'modern-sidebar' kapsayıcısı içine aldık.
-          Bu sınıf theme.css içindeki lacivert arka planı (var(--sidebar-bg)) verir.
-      */}
       <aside className="modern-sidebar">
         <div className="sidebar-logo">
           <div className="logo-icon">L</div>
@@ -59,12 +52,12 @@ export default function StationCargos({ onLogout }) {
         </div>
         <Sidebar role="Admin" onLogout={onLogout} />
       </aside>
-      {/* --- DÜZELTME BİTİŞİ --- */}
 
       <main className="main-content">
         <header className="content-header">
           <div>
-            [cite_start]<h1>İstasyon Depo Durumu [cite: 10]</h1>
+            {/* DÜZELTİLDİ: Garip textler silindi */}
+            <h1>İstasyon Depo Durumu</h1>
             <p className="subtitle">İstasyonlardaki bekleyen yükleri ve ağırlıklarını inceleyin.</p>
           </div>
         </header>

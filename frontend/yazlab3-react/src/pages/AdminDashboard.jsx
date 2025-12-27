@@ -1,186 +1,184 @@
-import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import Sidebar from "../components/ui/Sidebar"; // Sidebar'ı doğru yerden import ettik
-
-// --- LEAFLET ICON FIX ---
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-const COLORS = ['blue', 'red', 'green', 'purple', 'orange'];
+import React, { useState, useEffect } from "react";
+import Sidebar from "../components/ui/Sidebar";
+import { useNavigate } from "react-router-dom"; 
+import "../styles/theme.css";
 
 export default function AdminDashboard({ onLogout }) {
-  // --- STATE ---
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [scenarioId, setScenarioId] = useState(1);
-  const [unlimited, setUnlimited] = useState(false);
+  const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalStations: 0,
+    totalVehicles: 0,
+    totalRoutes: 0,
+    pendingCargos: 0
+  });
 
-  // --- API LOGIC ---
-  async function runScenario() {
-    setLoading(true);
-    try {
-      const response = await fetch("http://localhost:5014/api/admin/run-scenario", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenarioId, unlimitedVehicles: unlimited }),
-      });
-      
-      const data = await response.json();
-      if (!response.ok) alert("Hata oluştu: " + (data.message || "Bilinmeyen hata"));
-      else setResult(data); 
-    } catch (err) {
-      alert("Sunucuya bağlanılamadı.");
+  // Kullanıcı adını State'te tutalım
+  const [adminName, setAdminName] = useState("Yönetici");
+
+  useEffect(() => {
+    // 1. LocalStorage'dan kullanıcı adını çek
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const userObj = JSON.parse(storedUser);
+      // Eğer kullanıcının adı varsa onu kullan, yoksa "Admin" yaz
+      setAdminName(userObj.name || userObj.username || "Admin");
     }
-    setLoading(false);
-  }
 
-  // --- HESAPLAMALAR ---
-  const vehiclesData = Array.isArray(result) ? result : [];
-  const totalVehicles = vehiclesData.length;
-  const totalCost = vehiclesData.reduce((sum, v) => sum + v.totalCost, 0).toLocaleString();
-  const totalRoutes = vehiclesData.reduce((sum, v) => sum + (v.route ? v.route.length : 0), 0);
-  const totalDistance = vehiclesData.reduce((sum, v) => sum + v.totalDistanceKm, 0).toFixed(1);
+    // 2. İstatistik Verileri (Mock Data)
+    setStats({
+        totalStations: 12, 
+        totalVehicles: 5,
+        totalRoutes: 24,
+        pendingCargos: 150
+    });
+  }, []);
+
+  // --- KART BİLEŞENİ ---
+  const NavCard = ({ title, desc, icon, color, link }) => (
+    <div 
+        className="card nav-card" 
+        onClick={() => navigate(link)}
+        style={{
+            cursor: "pointer", 
+            transition: "all 0.3s ease",
+            borderLeft: `5px solid ${color}`,
+            display: "flex",
+            alignItems: "center",
+            padding: "25px",
+            position: "relative",
+            overflow: "hidden",
+            backgroundColor: "white"
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-5px)"; e.currentTarget.style.boxShadow = "0 10px 20px rgba(0,0,0,0.1)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+    >
+        <div style={{
+            background: `${color}20`,
+            color: color,
+            width: "60px",
+            height: "60px",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "24px",
+            marginRight: "20px",
+            flexShrink: 0
+        }}>
+            <i className={`fas ${icon}`}></i>
+        </div>
+
+        <div>
+            <h3 style={{margin: "0 0 5px 0", color: "#1e293b", fontSize: "18px"}}>{title}</h3>
+            <p style={{margin: 0, color: "#64748b", fontSize: "13px"}}>{desc}</p>
+        </div>
+
+        <div style={{position: "absolute", right: "20px", color: "#cbd5e1"}}>
+            <i className="fas fa-chevron-right"></i>
+        </div>
+    </div>
+  );
 
   return (
     <div className="dashboard-container">
-      {/* 1. SIDEBAR */}
-      {/* ÖNEMLİ: role="Admin" parametresini ekledim, menüler görünsün diye */}
       <aside className="modern-sidebar">
-        <div className="sidebar-logo">
-           <div className="logo-icon">L</div>
-           <span>LOGI-TECH</span>
-        </div>
+        <div className="sidebar-logo"><div className="logo-icon">L</div><span>LOGI-TECH</span></div>
         <Sidebar role="Admin" onLogout={onLogout} />
       </aside>
 
       <main className="main-content">
-        {/* HEADER & CONTROLS */}
-        <header className="content-header">
+        
+        {/* --- HEADER (GÜNCELLENDİ) --- */}
+        <header className="content-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h1>Genel Bakış</h1>
-            <p className="subtitle">Sistemdeki güncel lojistik verileri ve araç durumları.</p>
+            <h1>Admin Paneli</h1>
+            <p className="subtitle">Sistem yönetimi ve lojistik operasyon merkezi.</p>
           </div>
           
-          {/* SCENARIO CONTROLS */}
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <select 
-              className="modern-select" 
-              style={{ width: "150px" }}
-              value={scenarioId} 
-              onChange={(e) => setScenarioId(Number(e.target.value))}
-            >
-              <option value={1}>Senaryo 1</option>
-              <option value={2}>Senaryo 2</option>
-              <option value={3}>Senaryo 3</option>
-              <option value={4}>Senaryo 4</option>
-            </select>
-
-            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "14px", color: "#64748b" }}>
-              <input type="checkbox" checked={unlimited} onChange={(e) => setUnlimited(e.target.checked)} />
-              Sınırsız
-            </label>
-
-            <button className="modern-submit-btn" style={{ width: "auto", padding: "0 20px" }} onClick={runScenario}>
-              {loading ? "Hesaplanıyor..." : "Verileri Getir"}
-            </button>
+          {/* SÜSLÜ PROFİL ALANI */}
+          <div className="user-profile-card" style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "15px", 
+              background: "white", 
+              padding: "8px 15px", 
+              borderRadius: "50px", 
+              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              border: "1px solid #e2e8f0"
+          }}>
+            <div style={{ textAlign: "right" }}>
+                <span style={{ display: "block", fontSize: "14px", fontWeight: "700", color: "#1e293b" }}>{adminName}</span>
+                <span style={{ display: "block", fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>Sistem Yöneticisi</span>
+            </div>
+            <div style={{ 
+                width: "40px", 
+                height: "40px", 
+                background: "linear-gradient(135deg, #4f46e5 0%, #818cf8 100%)", 
+                color: "white", 
+                borderRadius: "50%", 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                fontSize: "18px", 
+                fontWeight: "bold",
+                boxShadow: "0 4px 10px rgba(79, 70, 229, 0.3)"
+            }}>
+                {adminName.charAt(0).toUpperCase()}
+            </div>
           </div>
         </header>
 
-        {/* 2. STATS GRID */}
-        <section className="stats-grid">
-          <div className="card stat-card">
-            <div className="p-4">
-              <div className="stat-icon purple"><i className="fas fa-truck-fast"></i></div>
-              <div className="stat-info"><p>Toplam Araç</p><h3>{totalVehicles}</h3></div>
-            </div>
-          </div>
-
-          <div className="card stat-card">
-            <div className="p-4">
-              <div className="stat-icon green"><i className="fas fa-route"></i></div>
-              <div className="stat-info"><p>Toplam Mesafe</p><h3>{totalDistance} km</h3></div>
-            </div>
-          </div>
-
-          <div className="card stat-card">
-            <div className="p-4">
-              <div className="stat-icon orange"><i className="fas fa-lira-sign"></i></div>
-              <div className="stat-info"><p>Toplam Maliyet</p><h3>₺ {totalCost}</h3></div>
-            </div>
-          </div>
+        {/* --- İSTATİSTİKLER --- */}
+        <section className="stats-grid" style={{marginBottom: "30px"}}>
+            <div className="card stat-card"><div className="p-4"><div className="stat-icon purple"><i className="fas fa-map-marker-alt"></i></div><div className="stat-info"><p>Toplam İstasyon</p><h3>{stats.totalStations}</h3></div></div></div>
+            <div className="card stat-card"><div className="p-4"><div className="stat-icon orange"><i className="fas fa-truck"></i></div><div className="stat-info"><p>Aktif Araçlar</p><h3>{stats.totalVehicles}</h3></div></div></div>
+            <div className="card stat-card"><div className="p-4"><div className="stat-icon green"><i className="fas fa-route"></i></div><div className="stat-info"><p>Tamamlanan Rota</p><h3>{stats.totalRoutes}</h3></div></div></div>
+            <div className="card stat-card"><div className="p-4"><div className="stat-icon blue"><i className="fas fa-boxes"></i></div><div className="stat-info"><p>Bekleyen Yük</p><h3>{stats.pendingCargos}</h3></div></div></div>
         </section>
 
-        {/* 3. DASHBOARD GRID (MAP & TABLE) */}
-        <div className="dashboard-grid">
-          
-          {/* MAP SECTION */}
-          <div className="card map-section" style={{ padding: 0, overflow: 'hidden' }}>
-            <div className="map-wrapper">
-               <MapContainer center={[40.765, 29.940]} zoom={10} style={{ height: "100%", width: "100%" }}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap' />
-                  
-                  {vehiclesData.map((route, idx) => {
-                    const color = COLORS[idx % COLORS.length];
-                    return (
-                      <React.Fragment key={route.vehicleId || idx}>
-                        {route.pathCoordinates && <Polyline positions={route.pathCoordinates} pathOptions={{ color, weight: 5 }} />}
-                        {route.route.map((stop) => (
-                          <Marker key={stop.stationId} position={[stop.latitude, stop.longitude]}>
-                            <Popup>
-                              <strong>{stop.stationName}</strong><br/>
-                              Araç: #{route.vehicleId}<br/>
-                              Sıra: {stop.order}
-                            </Popup>
-                          </Marker>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-               </MapContainer>
-            </div>
-          </div>
+        {/* --- HIZLI ERİŞİM MENÜSÜ --- */}
+        <h3 style={{color: "#334155", marginBottom: "20px", paddingLeft: "5px", borderLeft: "4px solid #4f46e5", lineHeight: "1"}}>
+            Hızlı Erişim & Operasyonlar
+        </h3>
 
-          {/* TABLE SECTION */}
-          <div className="card table-section" style={{ display: 'flex', flexDirection: 'column', height: '550px' }}>
-            <div style={{ padding: "15px", borderBottom: "1px solid #eee" }}>
-              <h3 style={{ margin: 0, fontSize: "18px" }}>Son Rota Detayları</h3>
-            </div>
-            <div style={{ overflowY: "auto", flex: 1, padding: "0 15px" }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Araç ID</th>
-                    <th>Durak Sayısı</th>
-                    <th>Maliyet</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vehiclesData.map((v, i) => (
-                    <tr key={i}>
-                      <td>
-                        <span className="badge-type" style={{ color: COLORS[i % COLORS.length] }}>
-                          #{v.vehicleId}
-                        </span>
-                      </td>
-                      <td>{v.route ? v.route.length : 0} Durak</td>
-                      <td>₺{v.totalCost}</td>
-                    </tr>
-                  ))}
-                  {vehiclesData.length === 0 && (
-                    <tr><td colSpan="3" style={{ textAlign: "center", color: "#999", padding: "20px" }}>Henüz veri yok. Lütfen "Verileri Getir" butonuna basın.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div style={{
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
+            gap: "20px"
+        }}>
+            <NavCard 
+                title="Akıllı Rota Planlama" 
+                desc="Algoritma destekli rota oluşturma ve harita simülasyonu." 
+                icon="fa-map-location-dot" 
+                color="#4f46e5" 
+                link="/admin/routes" 
+            />
 
+            <NavCard 
+                title="Senaryo Test Merkezi" 
+                desc="Hazır senaryoları çalıştır, yükle ve sistem kapasitesini test et." 
+                icon="fa-vial" 
+                color="#ea580c" 
+                link="/admin/scenarios" 
+            />
+
+            <NavCard 
+                title="İstasyon Yükleri" 
+                desc="Hangi istasyonda ne kadar yük biriktiğini analiz et." 
+                icon="fa-chart-pie" 
+                color="#0891b2" 
+                link="/admin/station-cargos" 
+            />
+
+            <NavCard 
+                title="İstasyon Yönetimi" 
+                desc="İstasyon ekle, çıkar, mesafe matrislerini güncelle." 
+                icon="fa-building" 
+                color="#059669" 
+                link="/admin/stations" 
+            />
         </div>
+
       </main>
     </div>
   );

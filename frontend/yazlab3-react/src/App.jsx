@@ -11,6 +11,7 @@ import RoutePlanning from "./pages/RoutePlanning";
 import StationManagement from "./pages/StationManagement";
 import CargoTracking from "./pages/CargoTracking";
 import StationCargos from "./pages/StationCargos";
+import AdminScenarioPage from "./pages/AdminScenarioPage"
 
 // import StationManagement from "./pages/StationManagement"; // Admin için gerekirse bunu da açabilirsin
 
@@ -124,6 +125,16 @@ function App() {
       <Route 
         path="/admin/station-cargos" 
         element={user && user.role === "Admin" ? <StationCargos onLogout={handleLogout} /> : <Navigate to="/" />} 
+      />
+      <Route 
+        path="/admin/scenarios" 
+        element={
+          user && user.role === "Admin" ? (
+            <AdminScenarioPage onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/" />
+          )
+        } 
       />
     </Routes>
   );
