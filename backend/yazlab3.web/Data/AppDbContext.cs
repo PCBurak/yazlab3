@@ -66,15 +66,15 @@ namespace yazlab3.web.Data
                 new Station { Id = 1, Name = "Başiskele", Latitude = 40.7150, Longitude = 29.9270 },
                 new Station { Id = 2, Name = "Çayırova", Latitude = 40.8190, Longitude = 29.3730 },
                 new Station { Id = 3, Name = "Darıca", Latitude = 40.7730, Longitude = 29.4000 },
-                new Station { Id = 4, Name = "Derince", Latitude = 40.7560, Longitude = 29.8300 },
+                new Station { Id = 4, Name = "Derince", Latitude = 40.7556, Longitude = 29.825778 },
                 new Station { Id = 5, Name = "Dilovası", Latitude = 40.7870, Longitude = 29.5440 },
                 new Station { Id = 6, Name = "Gebze", Latitude = 40.8020, Longitude = 29.4300 },
-                new Station { Id = 7, Name = "Gölcük", Latitude = 40.7170, Longitude = 29.8180 },
+                new Station { Id = 7, Name = "Gölcük", Latitude = 40.716512, Longitude = 29.832408 },
                 new Station { Id = 8, Name = "Kandıra", Latitude = 41.0700, Longitude = 30.1500 },
-                new Station { Id = 9, Name = "Karamürsel", Latitude = 40.6920, Longitude = 29.6160 },
+                new Station { Id = 9, Name = "Karamürsel", Latitude = 40.691903, Longitude = 29.614093 },
                 new Station { Id = 10, Name = "Kartepe", Latitude = 40.7530, Longitude = 30.0160 },
                 new Station { Id = 11, Name = "Körfez", Latitude = 40.7710, Longitude = 29.7430 },
-                new Station { Id = 12, Name = "İzmit", Latitude = 40.7650, Longitude = 29.9400 },
+                new Station { Id = 12, Name = "İzmit", Latitude = 40.765581, Longitude = 29.938259 },
                 new Station { Id = 99, Name = "Umuttepe", Latitude = 40.8222, Longitude = 29.9217 }
             );
 

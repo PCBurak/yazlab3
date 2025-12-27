@@ -8,35 +8,49 @@ export default function Settings({ onLogout }) {
     RentalCost: "200",
     RentedCapacity: "500",
   });
-  const [vehicles, setVehicles] = useState([]); // Araçlar buraya dolacak
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [adminName, setAdminName] = useState("Yönetici");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Kullanıcıyı al
         const storedUser = localStorage.getItem("user");
         if (storedUser)
           setAdminName(JSON.parse(storedUser).username || "Admin");
 
         // 2. Ayarları çek
         const sRes = await fetch("http://localhost:5014/api/settings");
+        if (!sRes.ok) {
+          const err = await sRes.text();
+          throw new Error("Ayarlar yüklenemedi: " + err);
+        }
         const sData = await sRes.json();
         const sObj = {};
         sData.forEach((item) => {
           sObj[item.key] = item.value;
         });
-        setSettings(sObj);
 
-        // 3. ARAÇLARI ÇEK (Otomatik gelmesi için burası kritik)
+        // ✅ ÖNEMLİ: defaultları ezmeyelim (eksik key gelirse state bozulmasın)
+        setSettings((prev) => ({
+          ...prev,
+          ...sObj,
+        }));
+
+        // 3. Araçları çek
         const vRes = await fetch("http://localhost:5014/api/settings/vehicles");
+        if (!vRes.ok) {
+          const err = await vRes.text();
+          throw new Error("Araçlar yüklenemedi: " + err);
+        }
         const vData = await vRes.json();
-        setVehicles(vData); // Veritabanındaki araçlar state'e yüklendi
+        setVehicles(vData);
 
         setLoading(false);
       } catch (error) {
         console.error("Yükleme hatası:", error);
+        alert(error?.message || "Yükleme hatası!");
         setLoading(false);
       }
     };
@@ -52,28 +66,49 @@ export default function Settings({ onLogout }) {
   };
 
   const handleSaveAll = async () => {
+    if (saving) return;
+    setSaving(true);
+
     try {
       // Ayarları kaydet
       const settingsPayload = Object.keys(settings).map((key) => ({
         key,
-        value: settings[key].toString(),
+        value: settings[key]?.toString() ?? "",
       }));
-      await fetch("http://localhost:5014/api/settings/update", {
+
+      const sSaveRes = await fetch("http://localhost:5014/api/settings/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settingsPayload),
       });
 
+      // ✅ KRİTİK: fetch 400/500'de throw etmez → ok kontrol et
+      if (!sSaveRes.ok) {
+        const err = await sSaveRes.text();
+        throw new Error("Ayarlar kaydedilemedi: " + err);
+      }
+
       // Araçları kaydet
-      await fetch("http://localhost:5014/api/settings/update-vehicles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(vehicles),
-      });
+      const vSaveRes = await fetch(
+        "http://localhost:5014/api/settings/update-vehicles",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(vehicles),
+        }
+      );
+
+      if (!vSaveRes.ok) {
+        const err = await vSaveRes.text();
+        throw new Error("Araçlar kaydedilemedi: " + err);
+      }
 
       alert("✅ Veritabanı başarıyla güncellendi!");
     } catch (e) {
-      alert("Kaydetme hatası!");
+      console.error("Kaydetme hatası:", e);
+      alert(e?.message || "Kaydetme hatası!");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -97,9 +132,11 @@ export default function Settings({ onLogout }) {
               Operasyonel maliyetleri ve araç filosunu yönetin.
             </p>
           </div>
+          <div style={{ color: "#64748b", fontSize: 12 }}>
+            {adminName}
+          </div>
         </header>
 
-        {/* --- ÜST BÖLÜM: MALİYET AYARLARI --- */}
         <div className="card settings-main-card">
           <h4 className="section-title">
             <i className="fas fa-sliders-h"></i> Maliyet Ayarları
@@ -109,7 +146,7 @@ export default function Settings({ onLogout }) {
               <label>Yol Maliyeti (KM)</label>
               <input
                 type="number"
-                value={settings.FuelCost}
+                value={settings.FuelCost ?? ""}
                 onChange={(e) =>
                   setSettings({ ...settings, FuelCost: e.target.value })
                 }
@@ -119,7 +156,7 @@ export default function Settings({ onLogout }) {
               <label>Kiralama Maliyeti</label>
               <input
                 type="number"
-                value={settings.RentalCost}
+                value={settings.RentalCost ?? ""}
                 onChange={(e) =>
                   setSettings({ ...settings, RentalCost: e.target.value })
                 }
@@ -129,7 +166,7 @@ export default function Settings({ onLogout }) {
               <label>Kiralık Araç Kapasitesi</label>
               <input
                 type="number"
-                value={settings.RentedCapacity}
+                value={settings.RentedCapacity ?? ""}
                 onChange={(e) =>
                   setSettings({ ...settings, RentedCapacity: e.target.value })
                 }
@@ -138,13 +175,12 @@ export default function Settings({ onLogout }) {
           </div>
         </div>
 
-        {/* --- ALT BÖLÜM: ARAÇ FİLOSU (DÜZELTİLMİŞ ARAYÜZ) --- */}
         <div className="card fleet-management-card">
           <div className="fleet-header">
             <h4 className="section-title">
               <i className="fas fa-truck-moving"></i> Sabit Araç Filosu
             </h4>
-            <button className="add-btn" onClick={addVehicle}>
+            <button className="add-btn" onClick={addVehicle} disabled={saving}>
               <i className="fas fa-plus"></i> Yeni Araç
             </button>
           </div>
@@ -155,6 +191,7 @@ export default function Settings({ onLogout }) {
                 <button
                   className="delete-mini-btn"
                   onClick={() => removeVehicle(index)}
+                  disabled={saving}
                 >
                   ×
                 </button>
@@ -170,10 +207,10 @@ export default function Settings({ onLogout }) {
                         value={v.capacityKg}
                         onChange={(e) => {
                           const newV = [...vehicles];
-                          newV[index].capacityKg =
-                            parseInt(e.target.value) || 0;
+                          newV[index].capacityKg = parseInt(e.target.value) || 0;
                           setVehicles(newV);
                         }}
+                        disabled={saving}
                       />
                       <span>KG</span>
                     </div>
@@ -183,9 +220,9 @@ export default function Settings({ onLogout }) {
             ))}
           </div>
 
-          <button className="save-full-btn" onClick={handleSaveAll}>
-            <i className="fas fa-save"></i> Tüm Değişiklikleri Veritabanına
-            Kaydet
+          <button className="save-full-btn" onClick={handleSaveAll} disabled={saving}>
+            <i className="fas fa-save"></i>{" "}
+            {saving ? "Kaydediliyor..." : "Tüm Değişiklikleri Veritabanına Kaydet"}
           </button>
         </div>
       </main>

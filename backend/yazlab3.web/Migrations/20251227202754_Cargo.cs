@@ -29,6 +29,20 @@ namespace yazlab3.web.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SystemSettings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Key = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Value = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SystemSettings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -59,28 +73,6 @@ namespace yazlab3.web.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "CargoRequests",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    StationId = table.Column<int>(type: "int", nullable: false),
-                    CargoCount = table.Column<int>(type: "int", nullable: false),
-                    TotalWeightKg = table.Column<int>(type: "int", nullable: false),
-                    RequestDate = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CargoRequests", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CargoRequests_Stations_StationId",
-                        column: x => x.StationId,
-                        principalTable: "Stations",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "StationDistances",
                 columns: table => new
                 {
@@ -105,6 +97,37 @@ namespace yazlab3.web.Migrations
                         principalTable: "Stations",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CargoRequests",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StationId = table.Column<int>(type: "int", nullable: false),
+                    CargoCount = table.Column<int>(type: "int", nullable: false),
+                    TotalWeightKg = table.Column<int>(type: "int", nullable: false),
+                    RequestDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReceiverName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CargoType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CargoRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CargoRequests_Stations_StationId",
+                        column: x => x.StationId,
+                        principalTable: "Stations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CargoRequests_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -236,6 +259,11 @@ namespace yazlab3.web.Migrations
                 column: "StationId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CargoRequests_UserId",
+                table: "CargoRequests",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Routes_VehicleId",
                 table: "Routes",
                 column: "VehicleId");
@@ -272,6 +300,9 @@ namespace yazlab3.web.Migrations
 
             migrationBuilder.DropTable(
                 name: "StationDistances");
+
+            migrationBuilder.DropTable(
+                name: "SystemSettings");
 
             migrationBuilder.DropTable(
                 name: "Users");

@@ -12,8 +12,8 @@ using yazlab3.web.Data;
 namespace yazlab3.web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251225163925_mig1")]
-    partial class mig1
+    [Migration("20251227204117_Cargo2")]
+    partial class Cargo2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -122,8 +122,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 4,
-                            Latitude = 40.756,
-                            Longitude = 29.829999999999998,
+                            Latitude = 40.755600000000001,
+                            Longitude = 29.825778,
                             Name = "Derince"
                         },
                         new
@@ -143,8 +143,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 7,
-                            Latitude = 40.716999999999999,
-                            Longitude = 29.818000000000001,
+                            Latitude = 40.716512000000002,
+                            Longitude = 29.832408000000001,
                             Name = "Gölcük"
                         },
                         new
@@ -157,8 +157,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 9,
-                            Latitude = 40.692,
-                            Longitude = 29.616,
+                            Latitude = 40.691903000000003,
+                            Longitude = 29.614093,
                             Name = "Karamürsel"
                         },
                         new
@@ -178,8 +178,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 12,
-                            Latitude = 40.765000000000001,
-                            Longitude = 29.940000000000001,
+                            Latitude = 40.765580999999997,
+                            Longitude = 29.938258999999999,
                             Name = "İzmit"
                         },
                         new
@@ -270,6 +270,8 @@ namespace yazlab3.web.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("StationId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("CargoRequests");
                 });
@@ -498,6 +500,27 @@ namespace yazlab3.web.Migrations
                         });
                 });
 
+            modelBuilder.Entity("yazlab3.web.Models.SystemSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SystemSettings");
+                });
+
             modelBuilder.Entity("yazlab3.web.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -584,7 +607,15 @@ namespace yazlab3.web.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("yazlab3.web.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Station");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("yazlab3.web.Models.StationDistance", b =>

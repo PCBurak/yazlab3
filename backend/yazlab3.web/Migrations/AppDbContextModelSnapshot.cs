@@ -119,8 +119,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 4,
-                            Latitude = 40.756,
-                            Longitude = 29.829999999999998,
+                            Latitude = 40.755600000000001,
+                            Longitude = 29.825778,
                             Name = "Derince"
                         },
                         new
@@ -140,8 +140,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 7,
-                            Latitude = 40.716999999999999,
-                            Longitude = 29.818000000000001,
+                            Latitude = 40.716512000000002,
+                            Longitude = 29.832408000000001,
                             Name = "Gölcük"
                         },
                         new
@@ -154,8 +154,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 9,
-                            Latitude = 40.692,
-                            Longitude = 29.616,
+                            Latitude = 40.691903000000003,
+                            Longitude = 29.614093,
                             Name = "Karamürsel"
                         },
                         new
@@ -175,8 +175,8 @@ namespace yazlab3.web.Migrations
                         new
                         {
                             Id = 12,
-                            Latitude = 40.765000000000001,
-                            Longitude = 29.940000000000001,
+                            Latitude = 40.765580999999997,
+                            Longitude = 29.938258999999999,
                             Name = "İzmit"
                         },
                         new

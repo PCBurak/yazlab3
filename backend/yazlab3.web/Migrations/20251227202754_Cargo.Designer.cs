@@ -12,8 +12,8 @@ using yazlab3.web.Data;
 namespace yazlab3.web.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251227142745_Cargo4")]
-    partial class Cargo4
+    [Migration("20251227202754_Cargo")]
+    partial class Cargo
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -270,6 +270,8 @@ namespace yazlab3.web.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("StationId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("CargoRequests");
                 });
@@ -605,7 +607,15 @@ namespace yazlab3.web.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("yazlab3.web.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Station");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("yazlab3.web.Models.StationDistance", b =>
