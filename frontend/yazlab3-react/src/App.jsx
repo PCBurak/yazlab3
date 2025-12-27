@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
-
+import Settings from "./pages/Settings";
 // --- IMPORT PAGES ---
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -11,7 +11,7 @@ import RoutePlanning from "./pages/RoutePlanning";
 import StationManagement from "./pages/StationManagement";
 import CargoTracking from "./pages/CargoTracking";
 import StationCargos from "./pages/StationCargos";
-import AdminScenarioPage from "./pages/AdminScenarioPage"
+import AdminScenarioPage from "./pages/AdminScenarioPage";
 
 // import StationManagement from "./pages/StationManagement"; // Admin için gerekirse bunu da açabilirsin
 
@@ -45,97 +45,123 @@ function App() {
   return (
     <Routes>
       {/* --- PUBLIC ROUTES --- */}
-      
       {/* Login Page */}
-      <Route 
-        path="/" 
-        element={!user ? <Login onLogin={handleLogin} /> : <Navigate to={user.role === "Admin" ? "/admin" : "/user"} />} 
+      <Route
+        path="/"
+        element={
+          !user ? (
+            <Login onLogin={handleLogin} />
+          ) : (
+            <Navigate to={user.role === "Admin" ? "/admin" : "/user"} />
+          )
+        }
       />
-
       {/* Register Page */}
-      <Route 
-        path="/register" 
-        element={!user ? <Register /> : <Navigate to={user.role === "Admin" ? "/admin" : "/user"} />} 
+      <Route
+        path="/register"
+        element={
+          !user ? (
+            <Register />
+          ) : (
+            <Navigate to={user.role === "Admin" ? "/admin" : "/user"} />
+          )
+        }
       />
-
-
       {/* --- PROTECTED ROUTES --- */}
-
       {/* Admin Dashboard */}
-      <Route 
-        path="/admin" 
+      <Route
+        path="/admin"
         element={
           user && user.role === "Admin" ? (
             <AdminDashboard onLogout={handleLogout} />
           ) : (
             <Navigate to="/" />
           )
-        } 
+        }
       />
-
       {/* User Dashboard (Ana Panel) */}
-      <Route 
-        path="/user" 
+      <Route
+        path="/user"
         element={
           user && user.role === "User" ? (
             <UserDashboard user={user} onLogout={handleLogout} />
           ) : (
             <Navigate to="/" />
           )
-        } 
+        }
       />
-
       {/* User Cargo Send (Kargo Gönder Sayfası) - YENİ EKLENDİ */}
-      <Route 
-        path="/user/send" 
+      <Route
+        path="/user/send"
         element={
           user && user.role === "User" ? (
             <CargoSend user={user} onLogout={handleLogout} />
           ) : (
             <Navigate to="/" />
           )
-        } 
+        }
       />
-      <Route 
-        path="/admin/routes" 
+      <Route
+        path="/admin/routes"
         element={
-        user && user.role === "Admin" ? (
+          user && user.role === "Admin" ? (
             <RoutePlanning onLogout={handleLogout} />
           ) : (
             <Navigate to="/" />
           )
-        } 
+        }
       />
-
-
-      <Route 
-        path="/admin/stations" 
+      <Route
+        path="/admin/stations"
         element={
-        user && user.role === "Admin" ? (
-          <StationManagement onLogout={handleLogout} />
-        ) : (
-          <Navigate to="/" />
-        )
-      } 
+          user && user.role === "Admin" ? (
+            <StationManagement onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/" />
+          )
+        }
       />
-      <Route 
-        path="/user/tracking" 
-        element={user && user.role === "User" ? <CargoTracking onLogout={handleLogout} /> : <Navigate to="/" />} 
+      <Route
+        path="/user/tracking"
+        element={
+          user && user.role === "User" ? (
+            <CargoTracking onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/" />
+          )
+        }
       />
-      <Route 
-        path="/admin/station-cargos" 
-        element={user && user.role === "Admin" ? <StationCargos onLogout={handleLogout} /> : <Navigate to="/" />} 
+      <Route
+        path="/admin/station-cargos"
+        element={
+          user && user.role === "Admin" ? (
+            <StationCargos onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/" />
+          )
+        }
       />
-      <Route 
-        path="/admin/scenarios" 
+      <Route
+        path="/admin/scenarios"
         element={
           user && user.role === "Admin" ? (
             <AdminScenarioPage onLogout={handleLogout} />
           ) : (
             <Navigate to="/" />
           )
-        } 
+        }
       />
+      <Route
+        path="/admin/settings"
+        element={
+          user && user.role === "Admin" ? (
+            <Settings onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/" />
+          )
+        }
+      />{" "}
+      {/* <-- Bu kapatma etiketi eksikti, ekledik */}
     </Routes>
   );
 }

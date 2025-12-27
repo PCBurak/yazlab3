@@ -21,7 +21,6 @@ export default function Sidebar({ role, onLogout }) {
           Böylece bu alan kalan tüm boşluğu kaplar ve footer'ı en alta iter.
       */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        
         {/* 👑 ADMIN MENÜSÜ */}
         {isAdmin && (
           <ul className="nav-menu">
@@ -73,6 +72,17 @@ export default function Sidebar({ role, onLogout }) {
               >
                 <i className="fa-solid fa-location-dot"></i>
                 <span>İstasyon Yönetimi</span>
+              </NavLink>
+            </li>
+
+            {/* Sidebar.jsx içinde isAdmin bloğunun en altına ekle */}
+            <li className="nav-item">
+              <NavLink
+                to="/admin/settings"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                <i className="fa-solid fa-gear"></i>
+                <span>Sistem Ayarları</span>
               </NavLink>
             </li>
           </ul>

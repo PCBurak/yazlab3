@@ -26,7 +26,8 @@ namespace yazlab3.web.Models
         public string CargoType { get; set; } = "Standart";
 
         // Bu kargoyu hangi kullanıcı gönderdi? (İlişki)
+
         public int UserId { get; set; }
-        // public User User { get; set; } // Eğer User modelin varsa bu satırı açabilirsin
+        public User User { get; set; } // Eğer User modelin varsa bu satırı açabilirsin
     }
 }

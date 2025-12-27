@@ -1,19 +1,34 @@
-﻿using yazlab3.web.Models;
+﻿using yazlab3.web.Data;
+using yazlab3.web.Models;
+using System.Linq;
 
 namespace yazlab3.web.Services
 {
-    // Yol maliyetini hesaplayan basit servis:
-    // - km başına 1 birim
-    // - araç kiralıksa +200 birim
     public class CostService : ICostService
     {
-        private const double CostPerKm = 1.0;
-        private const double DefaultRentalCost = 200.0;
+        private readonly AppDbContext _db;
+
+        // Veritabanı bağlantısını Constructor üzerinden enjekte ediyoruz
+        public CostService(AppDbContext db)
+        {
+            _db = db;
+        }
 
         public double CalculateRouteCost(double distanceKm, bool isRented)
         {
-            var travelCost = distanceKm * CostPerKm;
-            var rentalCost = isRented ? DefaultRentalCost : 0.0;
+            // 1. Veritabanındaki ayarları çekiyoruz
+            var settings = _db.SystemSettings.ToDictionary(s => s.Key, s => s.Value);
+
+            // 2. Yol maliyetini (KM başı) al (Varsayılan: 1.0)
+            double fuelCost = double.Parse(settings.GetValueOrDefault("FuelCost", "1.0"));
+
+            // 3. Kiralama maliyetini al (Varsayılan: 200.0)
+            double rentalCostSetting = double.Parse(settings.GetValueOrDefault("RentalCost", "200.0"));
+
+            // 4. Hesaplama
+            var travelCost = distanceKm * fuelCost;
+            var rentalCost = isRented ? rentalCostSetting : 0.0;
+
             return travelCost + rentalCost;
         }
     }

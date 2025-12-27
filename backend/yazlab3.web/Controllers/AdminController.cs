@@ -105,7 +105,7 @@ namespace yazlab3.web.Controllers
         public IActionResult PlanRoutes([FromBody] PlanRequestDto dto)
         {
             // 1. Bekleyen kargoları çek
-            var pendingRequests = _db.CargoRequests.Include(c => c.Station).ToList();
+            var pendingRequests = _db.CargoRequests.Include(c => c.User).Include(c => c.Station).ToList();
 
             if (!pendingRequests.Any())
             {
@@ -144,14 +144,24 @@ namespace yazlab3.web.Controllers
             var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
             var fullPathCoordinates = new List<double[]>();
 
+            // MapToDto içindeki ilgili kısmı şu şekilde güncelle:
             if (sortedStops.Any())
             {
                 var first = sortedStops.First();
+                var last = sortedStops.Last(); // ✅ Son durağı tanımla
+
+                // 1. Depodan (99) -> İlk Durağa
                 fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(99, first.StationId));
+
+                // 2. Duraklar Arası
                 for (int i = 0; i < sortedStops.Count - 1; i++)
                 {
                     fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(sortedStops[i].StationId, sortedStops[i + 1].StationId));
                 }
+
+                // 3. ✅ BURAYI EKLE: Son Duraktan -> Depoya (99) Dönüş
+                // Bu satır olmazsa harita son durakta kopuk kalır veya düz çizgi atar.
+                fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(last.StationId, 99));
             }
 
             return new UserRouteResponseDto
@@ -168,7 +178,7 @@ namespace yazlab3.web.Controllers
                     Latitude = rs.Station?.Latitude ?? 0,
                     Longitude = rs.Station?.Longitude ?? 0,
 
-                    // --- KRİTİK DEĞİŞİKLİK BURADA ---
+                    // --- DÜZELTİLEN VE EKSİK OLAN KISIM BURASI ---
                     LoadedCargos = (sourceList != null)
                         // SENARYO MODU: Hafızadaki listeden bul
                         ? sourceList
@@ -176,16 +186,19 @@ namespace yazlab3.web.Controllers
                             .Select(c => new CargoDetailDto
                             {
                                 CargoId = c.Id,
+                                UserName = "Senaryo Kullanıcısı", // ✅ BURASI EKSİKTİ
                                 Count = c.CargoCount,
                                 Weight = c.TotalWeightKg,
                                 RequestDate = c.RequestDate
                             }).ToList()
                         // GERÇEK MOD: Veritabanından bul
                         : _db.CargoRequests
+                            .Include(c => c.User) // ✅ Kullanıcı tablosunu dahil et
                             .Where(c => r.ExactCargoIds.Contains(c.Id) && c.StationId == rs.StationId)
                             .Select(c => new CargoDetailDto
                             {
                                 CargoId = c.Id,
+                                UserName = c.User != null ? c.User.Username : "Bilinmeyen", // ✅ BURASI EKSİKTİ
                                 Count = c.CargoCount,
                                 Weight = c.TotalWeightKg,
                                 RequestDate = c.RequestDate

@@ -14,6 +14,7 @@ namespace yazlab3.web.Data
         public DbSet<Route> Routes { get; set; }
         public DbSet<RouteStation> RouteStations { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

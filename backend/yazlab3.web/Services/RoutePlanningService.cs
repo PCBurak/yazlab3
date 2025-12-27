@@ -51,13 +51,18 @@ namespace yazlab3.web.Services
             if (requests == null || requests.Count == 0)
                 return new RoutePlanResult();
 
+            var settings = _db.SystemSettings.ToDictionary(s => s.Key, s => s.Value);
+
+            double rentedCapacity = double.Parse(settings.GetValueOrDefault("RentedCapacity", "500"));
+            double rentalCost = double.Parse(settings.GetValueOrDefault("RentalCost", "200"));
+
             // --- ADIM 1: KARGO ELEME (KNAPSACK) ---
             List<CargoRequest> acceptedRequests;
             List<CargoRequest> rejectedRequests = new List<CargoRequest>();
 
             if (!unlimitedVehicles)
             {
-                double maxSystemCapacity = 2250; // 3 aracın toplam kapasitesi
+                double maxSystemCapacity = _db.Vehicles.Where(v => !v.IsRented).Sum(v => v.CapacityKg);
                 double currentLoad = 0;
                 acceptedRequests = new List<CargoRequest>();
 
@@ -103,7 +108,14 @@ namespace yazlab3.web.Services
                     Station = stationMap[g.Key],
                     CargoCount = g.Sum(x => x.CargoCount),
                     TotalWeightKg = g.Sum(x => x.TotalWeightKg),
-                    IncludedRequestIds = g.Select(x => x.Id).ToList()
+                    IncludedRequestIds = g.Select(x => x.Id).ToList(),
+                    LoadedCargos = g.Select(x => new {
+                        cargoId = x.Id,
+                        userName = x.User?.Username ?? "Bilinmeyen",
+                        weight = x.TotalWeightKg,
+                        count = x.CargoCount,
+                        requestDate = DateTime.Now // Varsa gerçek tarih x.CreatedAt
+                    }).Cast<object>().ToList()
                 })
                 .OrderByDescending(d => d.TotalWeightKg)
                 .ToList();
@@ -118,7 +130,7 @@ namespace yazlab3.web.Services
 
             foreach (var demand in demands)
             {
-                if (TryInsertIntoExistingRoute(plannedRoutes, demand))
+                if (TryInsertIntoExistingRoute(plannedRoutes, demand,rentalCost))
                     continue;
 
                 var vehicle = availableVehicles.FirstOrDefault(v => v.CapacityKg >= demand.TotalWeightKg);
@@ -127,7 +139,12 @@ namespace yazlab3.web.Services
                 {
                     if (!unlimitedVehicles) continue;
 
-                    vehicle = new Vehicle { CapacityKg = 500, IsRented = true, RentalCost = 200 };
+                    vehicle = new Vehicle
+                    {
+                        CapacityKg = (int)rentedCapacity, // DB'den gelen 
+                        IsRented = true,
+                        RentalCost = (int)rentalCost    // DB'den gelen
+                    };
                     _db.Vehicles.Add(vehicle);
                     _db.SaveChanges();
                 }
@@ -193,7 +210,8 @@ namespace yazlab3.web.Services
                     {
                         StationId = stop.StationId,
                         Station = stop.Station,
-                        Order = i + 1
+                        Order = i + 1,
+                        LoadedCargos = stop.LoadedCargos
                     });
                 }
                 route.RouteStations = routeStations;
@@ -211,7 +229,7 @@ namespace yazlab3.web.Services
         // YARDIMCI METOTLAR
         // ------------------------------------------------------------
 
-        private bool TryInsertIntoExistingRoute(List<PlannedRoute> plannedRoutes, StationDemandInternal demand)
+        private bool TryInsertIntoExistingRoute(List<PlannedRoute> plannedRoutes, StationDemandInternal demand, double rentalCost)
         {
             PlannedRoute bestRoute = null;
             double minCostIncrease = double.MaxValue;
@@ -224,7 +242,8 @@ namespace yazlab3.web.Services
                 double extraDistance = CalculateInsertionExtraDistance(route, demand);
                 double extraCost = _costService.CalculateRouteCost(extraDistance, route.Vehicle.IsRented);
 
-                if (extraCost < minCostIncrease)
+                // Mevcut araçlara ekleme maliyeti, kiralama maliyetinden (rentalCost) yüksekse ekleme yapma
+                if (extraCost < minCostIncrease && extraCost < rentalCost)
                 {
                     minCostIncrease = extraCost;
                     bestRoute = route;
@@ -295,10 +314,23 @@ namespace yazlab3.web.Services
             string startNodeId = FindNearestOsmNode(startStation.Latitude, startStation.Longitude);
             string endNodeId = FindNearestOsmNode(endStation.Latitude, endStation.Longitude);
 
-            var pathNodeIds = RunDijkstraOnOsm(startNodeId, endNodeId);
-            return pathNodeIds.Select(id => new double[] { _osmParser.Nodes[id].Lat, _osmParser.Nodes[id].Lon }).ToList();
-        }
+            if (startNodeId == null || endNodeId == null) return new List<double[]>();
 
+            var pathNodeIds = RunDijkstraOnOsm(startNodeId, endNodeId);
+
+            // ✅ DÜZELTME: Eğer yol bulunamadıysa (boşsa veya sadece 1-2 nokta varsa)
+            // kuş uçuşu çizmemesi için boş liste dönüyoruz.
+            if (pathNodeIds == null || pathNodeIds.Count <= 2)
+            {
+                // Eğer istasyonlar farklıysa ama yol bulunamadıysa koordinat verme
+                if (fromStationId != toStationId) return new List<double[]>();
+            }
+
+            return pathNodeIds
+                .Where(id => _osmParser.Nodes.ContainsKey(id))
+                .Select(id => new double[] { _osmParser.Nodes[id].Lat, _osmParser.Nodes[id].Lon })
+                .ToList();
+        }
         private double GetShortestPathDistanceKm(int fromStationId, int toStationId)
         {
             var dist = new Dictionary<int, double>();
@@ -341,9 +373,13 @@ namespace yazlab3.web.Services
         private string FindNearestOsmNode(double lat, double lon)
         {
             if (_osmParser.Nodes == null || !_osmParser.Nodes.Any()) return null;
-            return _osmParser.Nodes.Values.OrderBy(n => Math.Pow(n.Lat - lat, 2) + Math.Pow(n.Lon - lon, 2)).FirstOrDefault()?.Id;
-        }
 
+            // Sadece en az 1 bağlantısı (Edges) olan düğümler arasından en yakın olanı seç
+            return _osmParser.Nodes.Values
+                .Where(n => n.Edges != null && n.Edges.Count > 0) // İzole noktaları ele
+                .OrderBy(n => Math.Pow(n.Lat - lat, 2) + Math.Pow(n.Lon - lon, 2))
+                .FirstOrDefault()?.Id;
+        }
         private List<string> RunDijkstraOnOsm(string startId, string endId)
         {
             var dist = new Dictionary<string, double>();
@@ -391,6 +427,7 @@ namespace yazlab3.web.Services
         public int CargoCount { get; set; }
         public int TotalWeightKg { get; set; }
         public List<int> IncludedRequestIds { get; set; } = new List<int>();
+        public List<object> LoadedCargos { get; set; } = new List<object>();
     }
 
     internal class PlannedRoute

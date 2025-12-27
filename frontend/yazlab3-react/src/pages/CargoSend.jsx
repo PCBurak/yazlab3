@@ -15,13 +15,14 @@ export default function CargoSend({ user, onLogout }) {
   // --- STATE ---
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Form Verileri
   const [formData, setFormData] = useState({
-    stationId: "",
+    stationId: "", // Çıkış İstasyonu
+    destinationStationId: "", // Varış İstasyonu (Artık Dinamik)
     weight: "",
     cargoType: "Standart Koli",
-    receiverName: ""
+    receiverName: "",
   });
 
   // 1. İstasyonları Veritabanından Çek
@@ -30,9 +31,13 @@ export default function CargoSend({ user, onLogout }) {
       .then((res) => res.json())
       .then((data) => {
         setStations(data);
-        // İlk istasyonu varsayılan seç
+        // İlk iki istasyonu varsayılan olarak seç
         if (data.length > 0) {
-          setFormData((prev) => ({ ...prev, stationId: data[0].id }));
+          setFormData((prev) => ({
+            ...prev,
+            stationId: data[0].id,
+            destinationStationId: data[1] ? data[1].id : data[0].id,
+          }));
         }
       })
       .catch((err) => console.error("İstasyonlar yüklenemedi:", err));
@@ -49,40 +54,50 @@ export default function CargoSend({ user, onLogout }) {
     e.preventDefault();
     setLoading(true);
 
+    // ✅ KONTROL: Çıkış ve Varış aynı olamaz
+    if (formData.stationId === formData.destinationStationId) {
+      alert("Hata: Çıkış ve varış istasyonu aynı olamaz!");
+      setLoading(false);
+      return;
+    }
+
     const currentUser = JSON.parse(localStorage.getItem("user"));
-    
+
     // Backend'e gidecek tam paket
     const payload = {
-        userId: currentUser ? currentUser.id : 0,
-        stationId: Number(formData.stationId),
-        weight: Number(formData.weight),
-        cargoType: formData.cargoType,
-        receiverName: formData.receiverName
+      userId: currentUser ? currentUser.id : 0,
+      stationId: Number(formData.stationId),
+      destinationStationId: Number(formData.destinationStationId), // Dinamik ID
+      weight: Number(formData.weight),
+      cargoType: formData.cargoType,
+      receiverName: formData.receiverName,
     };
 
     try {
-        const response = await fetch("http://localhost:5014/api/cargo/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+      const response = await fetch("http://localhost:5014/api/cargo/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-        if (response.ok) {
-            alert("Kargo talebiniz başarıyla alındı! Tarih ve detaylar kaydedildi.");
-            // Formu temizle
-            setFormData({ ...formData, weight: "", receiverName: "" });
-        } else {
-            const errData = await response.json();
-            alert("Hata: " + (errData.message || "İşlem başarısız."));
-        }
+      if (response.ok) {
+        alert("✅ Kargo talebiniz başarıyla alındı!");
+        // Formu kısmen temizle
+        setFormData({ ...formData, weight: "", receiverName: "" });
+      } else {
+        const errData = await response.json();
+        alert("Hata: " + (errData.message || "İşlem başarısız."));
+      }
     } catch (error) {
-        alert("Sunucu hatası: " + error);
+      alert("Sunucu hatası: " + error);
     }
     setLoading(false);
   };
 
   // Tahmini Maliyet (Görsel Hesaplama)
-  const estimatedCost = formData.weight ? (formData.weight * 5.5).toFixed(2) : "0.00";
+  const estimatedCost = formData.weight
+    ? (formData.weight * 5.5).toFixed(2)
+    : "0.00";
 
   return (
     <div className="dashboard-container">
@@ -98,7 +113,9 @@ export default function CargoSend({ user, onLogout }) {
         <header className="content-header">
           <div>
             <h1>Kargo Gönder</h1>
-            <p className="subtitle">Yeni bir gönderi oluşturun.</p>
+            <p className="subtitle">
+              Yeni bir gönderi oluşturarak süreci başlatın.
+            </p>
           </div>
         </header>
 
@@ -106,38 +123,49 @@ export default function CargoSend({ user, onLogout }) {
           <Card className="card">
             <CardHeader>
               <CardTitle>
-                <i className="fa-solid fa-truck-ramp-box" style={{ marginRight: 10, color: "var(--primary)" }}></i>
-                Gönderi Bilgileri
+                <i
+                  className="fa-solid fa-truck-ramp-box"
+                  style={{ marginRight: 10, color: "var(--primary)" }}
+                ></i>
+                Gönderi Detayları
               </CardTitle>
             </CardHeader>
             <CardContent>
               <form className="cargo-form" onSubmit={handleSubmit}>
+                {/* İSTASYON SEÇİMLERİ */}
                 <div className="form-grid-three">
-                  
-                  {/* ÇIKIŞ İSTASYONU (DB) */}
                   <div className="form-group">
                     <Label>Çıkış İstasyonu</Label>
-                    <select 
-                        className="modern-select"
-                        name="stationId"
-                        value={formData.stationId}
-                        onChange={handleChange}
+                    <select
+                      className="modern-select"
+                      name="stationId"
+                      value={formData.stationId}
+                      onChange={handleChange}
                     >
                       {stations.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* VARIŞ İSTASYONU (SABİT) */}
                   <div className="form-group">
                     <Label>Varış İstasyonu</Label>
-                    <select className="modern-select" disabled style={{background: "#f1f5f9"}}>
-                      <option>Kocaeli Üniversitesi (Ana Merkez)</option>
+                    <select
+                      className="modern-select"
+                      name="destinationStationId"
+                      value={formData.destinationStationId}
+                      onChange={handleChange}
+                    >
+                      {stations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
-                  {/* AĞIRLIK */}
                   <div className="form-group">
                     <Label>Kargo Ağırlığı (kg)</Label>
                     <Input
@@ -153,39 +181,64 @@ export default function CargoSend({ user, onLogout }) {
                   </div>
                 </div>
 
+                {/* DİĞER BİLGİLER */}
                 <div className="form-grid-two" style={{ marginTop: "20px" }}>
-                  {/* KARGO TİPİ */}
                   <div className="form-group">
                     <Label>Kargo Tipi</Label>
-                    <select className="modern-select" name="cargoType" value={formData.cargoType} onChange={handleChange}>
+                    <select
+                      className="modern-select"
+                      name="cargoType"
+                      value={formData.cargoType}
+                      onChange={handleChange}
+                    >
                       <option>Standart Koli</option>
                       <option>Hassas İçerik</option>
                       <option>Tehlikeli Madde</option>
+                      <option>Dökme Yük</option>
                     </select>
                   </div>
 
-                  {/* ALICI ADI */}
                   <div className="form-group">
                     <Label>Alıcı Ad Soyad</Label>
-                    <Input 
-                      type="text" 
-                      name="receiverName" 
-                      value={formData.receiverName} 
-                      onChange={handleChange} 
+                    <Input
+                      type="text"
+                      name="receiverName"
+                      value={formData.receiverName}
+                      onChange={handleChange}
                       className="modern-input"
-                      placeholder="Örn: Ahmet Yılmaz"
+                      placeholder="Alıcının tam adı"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="form-footer" style={{ marginTop: "30px", paddingTop: "20px", borderTop: "1px solid #eee" }}>
-                    <div className="price-estimation">
-                        <span className="price-label">Tahmini Maliyet:</span>
-                        <span className="price-value">₺ {estimatedCost}</span>
-                    </div>
-                  <Button type="submit" className="modern-submit-btn" disabled={loading}>
-                    {loading ? "Kaydediliyor..." : "Gönderimi Tamamla"}
+                {/* FOOTER & FİYAT */}
+                <div
+                  className="form-footer"
+                  style={{
+                    marginTop: "30px",
+                    paddingTop: "20px",
+                    borderTop: "1px solid #eee",
+                  }}
+                >
+                  <div className="price-estimation">
+                    <span className="price-label">
+                      Hesaplanan Tahmini Ücret:
+                    </span>
+                    <span className="price-value">₺ {estimatedCost}</span>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="modern-submit-btn"
+                    disabled={loading}
+                    style={{
+                      background: "var(--primary)",
+                      color: "white",
+                      padding: "10px 25px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    {loading ? "İşleniyor..." : "Gönderiyi Onayla"}
                   </Button>
                 </div>
               </form>

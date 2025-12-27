@@ -29,6 +29,7 @@ namespace yazlab3.web.DTOs
     {
         public int CargoId { get; set; }
         public int Count { get; set; }
+        public string UserName { get; set; }
         public int Weight { get; set; }
         public DateTime RequestDate { get; set; }
     }

@@ -17,7 +17,6 @@ namespace yazlab3.web.Services
 
             foreach (var feature in features)
             {
-                // Sadece "LineString" (Yol) olanları alıyoruz
                 if (feature["geometry"]["type"].ToString() == "LineString")
                 {
                     var coordinates = feature["geometry"]["coordinates"].ToList();
@@ -27,10 +26,16 @@ namespace yazlab3.web.Services
                         var p1 = coordinates[i];
                         var p2 = coordinates[i + 1];
 
-                        string id1 = $"{p1[1]},{p1[0]}"; // Lat,Lon formatında ID
-                        string id2 = $"{p2[1]},{p2[0]}";
+                        // ✅ DÜZELTME: Koordinatları yuvarlayarak ID oluştur (Hassasiyet Kaymasını Önler)
+                        double lat1 = Math.Round((double)p1[1], 6);
+                        double lon1 = Math.Round((double)p1[0], 6);
+                        double lat2 = Math.Round((double)p2[1], 6);
+                        double lon2 = Math.Round((double)p2[0], 6);
 
-                        AddEdge(id1, id2, (double)p1[1], (double)p1[0], (double)p2[1], (double)p2[0]);
+                        string id1 = $"{lat1.ToString("F6")},{lon1.ToString("F6")}";
+                        string id2 = $"{lat2.ToString("F6")},{lon2.ToString("F6")}";
+
+                        AddEdge(id1, id2, lat1, lon1, lat2, lon2);
                     }
                 }
             }
