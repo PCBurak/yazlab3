@@ -5,6 +5,8 @@ import "../styles/theme.css";
 
 export default function AdminDashboard({ onLogout }) {
   const navigate = useNavigate();
+  
+  // İstatistikleri tutacak State
   const [stats, setStats] = useState({
     totalStations: 0,
     totalVehicles: 0,
@@ -12,25 +14,44 @@ export default function AdminDashboard({ onLogout }) {
     pendingCargos: 0
   });
 
-  // Kullanıcı adını State'te tutalım
   const [adminName, setAdminName] = useState("Yönetici");
 
   useEffect(() => {
-    // 1. LocalStorage'dan kullanıcı adını çek
+    // 1. LocalStorage'dan Kullanıcı Adını Çek
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      const userObj = JSON.parse(storedUser);
-      // Eğer kullanıcının adı varsa onu kullan, yoksa "Admin" yaz
-      setAdminName(userObj.name || userObj.username || "Admin");
+      try {
+        const userObj = JSON.parse(storedUser);
+        setAdminName(userObj.name || userObj.username || "Admin");
+      } catch {
+        setAdminName("Admin");
+      }
     }
 
-    // 2. İstatistik Verileri (Mock Data)
-    setStats({
-        totalStations: 12, 
-        totalVehicles: 5,
-        totalRoutes: 24,
-        pendingCargos: 150
-    });
+    // 2. VERİTABANINDAN CANLI İSTATİSTİK ÇEK (Tek Endpoint)
+    const fetchDashboardStats = async () => {
+      try {
+        // Backend'de AdminController içine eklediğimiz 'stats' endpointine istek atıyoruz
+        const response = await fetch("http://localhost:5014/api/admin/stats");
+
+        if (response.ok) {
+          const data = await response.json();
+          // Backend'den gelen veri yapısı: { totalStations: 12, totalVehicles: 5, ... }
+          setStats({
+            totalStations: data.totalStations || 0,
+            totalVehicles: data.totalVehicles || 0,
+            totalRoutes: data.totalRoutes || 0,
+            pendingCargos: data.pendingCargos || 0
+          });
+        } else {
+          console.error("İstatistikler çekilemedi. Durum Kodu:", response.status);
+        }
+      } catch (error) {
+        console.error("Dashboard verisi çekilirken hata oluştu:", error);
+      }
+    };
+
+    fetchDashboardStats();
   }, []);
 
   // --- KART BİLEŞENİ ---
@@ -88,14 +109,14 @@ export default function AdminDashboard({ onLogout }) {
 
       <main className="main-content">
         
-        {/* --- HEADER (GÜNCELLENDİ) --- */}
+        {/* --- HEADER --- */}
         <header className="content-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h1>Admin Paneli</h1>
             <p className="subtitle">Sistem yönetimi ve lojistik operasyon merkezi.</p>
           </div>
           
-          {/* SÜSLÜ PROFİL ALANI */}
+          {/* PROFİL KARTI */}
           <div className="user-profile-card" style={{ 
               display: "flex", 
               alignItems: "center", 
@@ -128,12 +149,32 @@ export default function AdminDashboard({ onLogout }) {
           </div>
         </header>
 
-        {/* --- İSTATİSTİKLER --- */}
+        {/* --- İSTATİSTİKLER (CANLI) --- */}
         <section className="stats-grid" style={{marginBottom: "30px"}}>
-            <div className="card stat-card"><div className="p-4"><div className="stat-icon purple"><i className="fas fa-map-marker-alt"></i></div><div className="stat-info"><p>Toplam İstasyon</p><h3>{stats.totalStations}</h3></div></div></div>
-            <div className="card stat-card"><div className="p-4"><div className="stat-icon orange"><i className="fas fa-truck"></i></div><div className="stat-info"><p>Aktif Araçlar</p><h3>{stats.totalVehicles}</h3></div></div></div>
-            <div className="card stat-card"><div className="p-4"><div className="stat-icon green"><i className="fas fa-route"></i></div><div className="stat-info"><p>Tamamlanan Rota</p><h3>{stats.totalRoutes}</h3></div></div></div>
-            <div className="card stat-card"><div className="p-4"><div className="stat-icon blue"><i className="fas fa-boxes"></i></div><div className="stat-info"><p>Bekleyen Yük</p><h3>{stats.pendingCargos}</h3></div></div></div>
+            <div className="card stat-card">
+                <div className="p-4">
+                    <div className="stat-icon purple"><i className="fas fa-map-marker-alt"></i></div>
+                    <div className="stat-info"><p>Toplam İstasyon</p><h3>{stats.totalStations}</h3></div>
+                </div>
+            </div>
+            <div className="card stat-card">
+                <div className="p-4">
+                    <div className="stat-icon orange"><i className="fas fa-truck"></i></div>
+                    <div className="stat-info"><p>Kayıtlı Araçlar</p><h3>{stats.totalVehicles}</h3></div>
+                </div>
+            </div>
+            <div className="card stat-card">
+                <div className="p-4">
+                    <div className="stat-icon green"><i className="fas fa-route"></i></div>
+                    <div className="stat-info"><p>Rota Geçmişi</p><h3>{stats.totalRoutes}</h3></div>
+                </div>
+            </div>
+            <div className="card stat-card">
+                <div className="p-4">
+                    <div className="stat-icon blue"><i className="fas fa-boxes"></i></div>
+                    <div className="stat-info"><p>Toplam Kargo</p><h3>{stats.pendingCargos}</h3></div>
+                </div>
+            </div>
         </section>
 
         {/* --- HIZLI ERİŞİM MENÜSÜ --- */}

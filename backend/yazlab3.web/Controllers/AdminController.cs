@@ -228,6 +228,24 @@ namespace yazlab3.web.Controllers
                 .Replace("ı", "i").Replace("İ", "i").Replace("ç", "c")
                 .Replace("ğ", "g").Replace("ö", "o").Replace("ş", "s").Replace("ü", "u");
 
+
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetDashboardStats()
+        {
+            var stationCount = await _db.Stations.CountAsync();
+            var vehicleCount = await _db.Vehicles.CountAsync();
+            var routeCount = await _db.Routes.CountAsync();
+            var cargoCount = await _db.CargoRequests.CountAsync();
+
+            return Ok(new
+            {
+                totalStations = stationCount,
+                totalVehicles = vehicleCount,
+                totalRoutes = routeCount,
+                pendingCargos = cargoCount
+            });
+        }
+
         public class PlanRequestDto
         {
             public bool UnlimitedVehicles { get; set; }
