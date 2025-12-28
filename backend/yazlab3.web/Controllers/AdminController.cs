@@ -23,27 +23,26 @@ namespace yazlab3.web.Controllers
             _db = db;
         }
 
-        // --- 1. SENARYO ÇALIŞTIRMA (ARTIK DETAYLI VE PARÇALI) ---
+        // --- SENARYO ÇALIŞTIRMA ---
         [HttpPost("run-scenario")]
         public IActionResult RunScenario([FromBody] ScenarioRunRequestDto dto)
         {
-            // 1. Senaryo verisini çek
             var rows = ScenarioData.GetScenario(dto.ScenarioId);
 
-            // 2. İstasyonları map'le (Station objesine ihtiyacımız var)
+            // İstasyonları çek
             var stations = _db.Stations.AsNoTracking().ToList();
             var stationMap = stations.ToDictionary(s => Normalize(s.Name), s => s);
 
-            // 3. Kargo listesini oluştur (PARÇALAYARAK)
             var cargoEntities = new List<CargoRequest>();
             var missing = new List<string>();
 
-            // Çakışma olmasın diye yüksek bir ID'den başlatıyoruz (Sadece RAM'de yaşayacak)
             int tempIdCounter = 100000;
+            var rng = new Random();
 
             foreach (var r in rows)
             {
-                if (r.CargoCount <= 0 && r.TotalWeightKg <= 0) continue;
+                // boş satırları geç
+                if (r.CargoCount <= 0 || r.TotalWeightKg <= 0) continue;
 
                 if (!stationMap.TryGetValue(Normalize(r.StationName), out var station))
                 {
@@ -51,39 +50,77 @@ namespace yazlab3.web.Controllers
                     continue;
                 }
 
-                // --- DÜZELTME BURADA: Kargoları tek tek oluşturuyoruz ---
-                // Örn: 10 adet 120kg ise -> Tanesi 12kg olan 10 ayrı paket oluştur.
-                double avgWeight = (double)r.TotalWeightKg / (r.CargoCount == 0 ? 1 : r.CargoCount);
+                // ✅ TOPLAM KG'Yİ BOZMAYAN SPLIT:
+                // örn 220kg / 15 => 14,14,... ve kalan 10 taneye +1
+                int baseW = r.TotalWeightKg / r.CargoCount;
+                int rem = r.TotalWeightKg % r.CargoCount;
 
                 for (int i = 0; i < r.CargoCount; i++)
                 {
+                    int w = baseW + (i < rem ? 1 : 0);
+                    if (w <= 0) w = 1;
+
                     cargoEntities.Add(new CargoRequest
                     {
-                        Id = tempIdCounter++, // Sahte ID atıyoruz ki algoritma takip edebilsin
+                        Id = tempIdCounter++,
                         StationId = station.Id,
-                        Station = station, // Station objesini elle koyuyoruz (Null hatası almamak için)
+                        Station = station,
                         CargoCount = 1,
-                        TotalWeightKg = (int)Math.Round(avgWeight) > 0 ? (int)Math.Round(avgWeight) : 1,
-                        RequestDate = DateTime.Now.AddMinutes(-new Random().Next(1, 1000)) // Rastgele tarih
+                        TotalWeightKg = w,
+                        RequestDate = DateTime.Now.AddMinutes(-rng.Next(1, 1000)),
+                        ReceiverName = "Senaryo",
+                        CargoType = "Standart",
+                        UserId = 0,
+                        User = null
                     });
                 }
             }
 
-            if (missing.Count > 0) return BadRequest(new { message = "Stations missing in DB", missing });
+            if (missing.Count > 0)
+                return BadRequest(new { message = "Stations missing in DB", missing });
 
-            // 4. Rota Planla
+            // Algoritmayı çalıştır
             var result = _routeService.PlanRoutes(cargoEntities, dto.UnlimitedVehicles, dto.Strategy);
 
-            // 5. DTO'ya Çevir 
-            // DÜZELTME: İkinci parametre olarak 'cargoEntities' listesini gönderiyoruz.
-            // Böylece MapToDto, veritabanına bakmak yerine bizim oluşturduğumuz bu listeye bakacak.
-            var response = result.Routes.Select(r => MapToDto(r, cargoEntities)).ToList();
+            // Route DTO
+            var routesDto = result.Routes.Select(r => MapToDto(r, cargoEntities)).ToList();
 
-            // Reddedilenleri de ekleyebiliriz (İsteğe bağlı, frontend yapına göre)
-            // Şimdilik sadece route listesini döndürüyoruz, senin frontend yapın bunu bekliyor olabilir.
-            // Eğer rejectedCargos bekleyen bir yapın varsa return tipini değiştirmelisin.
-            // Mevcut koduna sadık kalarak liste dönüyorum:
-            return Ok(response);
+            // Rejected özetini istasyon bazında grupla
+            var rejectedSummary = result.RejectedRequests
+                .GroupBy(x => x.StationId)
+                .Select(g => new
+                {
+                    stationName = g.First().Station?.Name ?? "Bilinmiyor",
+                    cargoCount = g.Sum(x => x.CargoCount),
+                    weight = g.Sum(x => x.TotalWeightKg),
+                    reason = "Kapasite Yetersiz"
+                })
+                .OrderByDescending(x => x.weight)
+                .ToList();
+
+            // Meta (kesin doğrulama)
+            int totalInputKg = cargoEntities.Sum(x => x.TotalWeightKg);
+            int shippedKg = result.Routes.SelectMany(r => r.ExactCargoIds).Join(cargoEntities, id => id, c => c.Id, (id, c) => c.TotalWeightKg).Sum();
+            int rejectedKg = result.RejectedRequests.Sum(x => x.TotalWeightKg);
+
+            var meta = new
+            {
+                scenarioId = dto.ScenarioId,
+                unlimitedVehicles = dto.UnlimitedVehicles,
+                strategy = dto.Strategy,
+                totalInputKg = totalInputKg,
+                shippedKg = shippedKg,
+                rejectedKg = rejectedKg,
+                shippedCount = result.Routes.SelectMany(r => r.ExactCargoIds).Count(),
+                rejectedCount = result.RejectedRequests.Count
+            };
+
+            return Ok(new
+            {
+                routes = routesDto,
+                rejectedCargos = rejectedSummary,
+                meta = meta
+            });
         }
 
         [HttpPost("plan-dynamic")]
@@ -97,70 +134,65 @@ namespace yazlab3.web.Controllers
             _db.Routes.AddRange(result.Routes);
             _db.SaveChanges();
 
-            // Veritabanından çektiğimiz için ikinci parametre null (DB kullanacak)
+            // DB modu: sourceList=null
             return Ok(result.Routes.Select(r => MapToDto(r, null)).ToList());
         }
 
         [HttpPost("plan-routes")]
         public IActionResult PlanRoutes([FromBody] PlanRequestDto dto)
         {
-            // 1. Bekleyen kargoları çek
-            var pendingRequests = _db.CargoRequests.Include(c => c.User).Include(c => c.Station).ToList();
+            var pendingRequests = _db.CargoRequests
+                .Include(c => c.User)
+                .Include(c => c.Station)
+                .ToList();
 
             if (!pendingRequests.Any())
             {
                 return BadRequest(new { message = "Planlanacak kargo talebi bulunamadı. Önce kullanıcı panelinden kargo ekleyin." });
             }
 
-            // 2. Algoritmayı Çalıştır
             var result = _routeService.PlanRoutes(pendingRequests, dto.UnlimitedVehicles, dto.Strategy);
 
-            // 3. Sonuçları Kaydet (Sadece rotalar)
             _db.Routes.AddRange(result.Routes);
             _db.SaveChanges();
 
-            // 4. Frontend İçin Cevap
-            // Veritabanından çektiğimiz için ikinci parametre null
             var response = new
             {
                 routes = result.Routes.Select(r => MapToDto(r, null)).ToList(),
-                rejectedCargos = result.RejectedRequests.Select(req => new
-                {
-                    stationName = req.Station?.Name ?? "Bilinmiyor",
-                    cargoCount = req.CargoCount,
-                    weight = req.TotalWeightKg,
-                    reason = "Kapasite Yetersiz"
-                }).ToList()
+                rejectedCargos = result.RejectedRequests
+                    .GroupBy(x => x.StationId)
+                    .Select(g => new
+                    {
+                        stationName = g.First().Station?.Name ?? "Bilinmiyor",
+                        cargoCount = g.Sum(x => x.CargoCount),
+                        weight = g.Sum(x => x.TotalWeightKg),
+                        reason = "Kapasite Yetersiz"
+                    })
+                    .OrderByDescending(x => x.weight)
+                    .ToList()
             };
 
             return Ok(response);
         }
 
-        // --- YARDIMCI METOT (GÜNCELLENDİ) ---
-        // sourceList: Eğer doluysa (Senaryo modu), detayları oradan çeker.
-        // sourceList: Eğer null ise (Gerçek mod), detayları DB'den çeker.
+        // sourceList doluysa senaryo modundan okur, null ise DB'den okur
         private UserRouteResponseDto MapToDto(Route r, List<CargoRequest> sourceList)
         {
             var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();
             var fullPathCoordinates = new List<double[]>();
 
-            // MapToDto içindeki ilgili kısmı şu şekilde güncelle:
             if (sortedStops.Any())
             {
                 var first = sortedStops.First();
-                var last = sortedStops.Last(); // ✅ Son durağı tanımla
+                var last = sortedStops.Last();
 
-                // 1. Depodan (99) -> İlk Durağa
                 fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(99, first.StationId));
 
-                // 2. Duraklar Arası
                 for (int i = 0; i < sortedStops.Count - 1; i++)
                 {
                     fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(sortedStops[i].StationId, sortedStops[i + 1].StationId));
                 }
 
-                // 3. ✅ BURAYI EKLE: Son Duraktan -> Depoya (99) Dönüş
-                // Bu satır olmazsa harita son durakta kopuk kalır veya düz çizgi atar.
                 fullPathCoordinates.AddRange(_routeService.GetPathCoordinates(last.StationId, 99));
             }
 
@@ -178,27 +210,24 @@ namespace yazlab3.web.Controllers
                     Latitude = rs.Station?.Latitude ?? 0,
                     Longitude = rs.Station?.Longitude ?? 0,
 
-                    // --- DÜZELTİLEN VE EKSİK OLAN KISIM BURASI ---
                     LoadedCargos = (sourceList != null)
-                        // SENARYO MODU: Hafızadaki listeden bul
                         ? sourceList
                             .Where(c => r.ExactCargoIds.Contains(c.Id) && c.StationId == rs.StationId)
                             .Select(c => new CargoDetailDto
                             {
                                 CargoId = c.Id,
-                                UserName = "Senaryo Kullanıcısı", // ✅ BURASI EKSİKTİ
+                                UserName = "Senaryo Kullanıcısı",
                                 Count = c.CargoCount,
                                 Weight = c.TotalWeightKg,
                                 RequestDate = c.RequestDate
                             }).ToList()
-                        // GERÇEK MOD: Veritabanından bul
                         : _db.CargoRequests
-                            .Include(c => c.User) // ✅ Kullanıcı tablosunu dahil et
+                            .Include(c => c.User)
                             .Where(c => r.ExactCargoIds.Contains(c.Id) && c.StationId == rs.StationId)
                             .Select(c => new CargoDetailDto
                             {
                                 CargoId = c.Id,
-                                UserName = c.User != null ? c.User.Username : "Bilinmeyen", // ✅ BURASI EKSİKTİ
+                                UserName = c.User != null ? c.User.Username : "Bilinmeyen",
                                 Count = c.CargoCount,
                                 Weight = c.TotalWeightKg,
                                 RequestDate = c.RequestDate

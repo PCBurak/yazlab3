@@ -36,29 +36,49 @@ export default function AdminScenarioPage({ onLogout }) {
 
   async function handleRunScenario() {
     setLoading(true);
+  
     try {
       const response = await fetch("http://localhost:5014/api/admin/run-scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            scenarioId: Number(scenarioId),
-            unlimitedVehicles: mode === "unlimited", 
-            strategy: strategy 
+        body: JSON.stringify({
+          scenarioId: Number(scenarioId),
+          unlimitedVehicles: mode === "unlimited",
+          strategy: strategy,
         }),
       });
-
+    
       const data = await response.json();
+    
+      console.log("RUN-SCENARIO RAW RESPONSE:", data);
+      console.log("RAW rejectedCargos length:", data?.rejectedCargos?.length);
+      console.log("RAW meta:", data?.meta);
+    
       if (!response.ok) {
         alert(data.message || "Error running scenario");
       } else {
-        setResult(data); // Expecting { routes: [], rejectedCargos: [] }
+        const normalized = Array.isArray(data)
+          ? { routes: data, rejectedCargos: [], meta: null }
+          : {
+              routes: data.routes ?? data.Routes ?? [],
+              rejectedCargos: data.rejectedCargos ?? data.rejectedRequests ?? data.RejectedCargos ?? [],
+              meta: data.meta ?? null,
+            };
+          
+        console.log("RUN-SCENARIO NORMALIZED:", normalized);
+        console.log("NORMAL rejectedCargos length:", normalized.rejectedCargos?.length);
+        console.log("NORMAL meta:", normalized.meta);
+          
+        setResult(normalized);
         setActiveTab("map");
       }
     } catch (err) {
       alert("Server Error: " + err);
     }
+  
     setLoading(false);
   }
+
 
   // Statistics
   const routes = Array.isArray(result) ? result : (result?.routes || []);
