@@ -9,10 +9,9 @@ namespace yazlab3.web.Services
     public class RoutePlanningService : IRoutePlanningService
     {
         private readonly AppDbContext _db;
-        private readonly ICostService _costService; // dependency kalsın (senin yapını bozmayalım)
+        private readonly ICostService _costService; // durabilir
         private readonly OsmDataService _osmParser;
 
-        // Dijkstra için Graph yapısı
         private readonly Dictionary<int, List<Edge>> _adjacency = new Dictionary<int, List<Edge>>();
 
         private class Edge
@@ -27,7 +26,6 @@ namespace yazlab3.web.Services
             _costService = costService;
             _osmParser = osmParser;
 
-            // Veritabanındaki mesafeleri Graph'a yükle
             if (_db.StationDistances.Any())
             {
                 var allEdges = _db.StationDistances.ToList();
@@ -48,43 +46,48 @@ namespace yazlab3.web.Services
             if (requests == null || requests.Count == 0)
                 return new RoutePlanResult();
 
-            // --- 1) AYARLARI VERİTABANINDAN ÇEK ---
-            var settings = _db.SystemSettings.ToDictionary(s => s.Key, s => s.Value);
+            // 0) NAVIGATION NULL ise doldur (senaryo modunda Station zaten geliyor, DB modunda bazen null yakalanıyor)
+            //    Not: AsNoTracking vs önemli değil; sadece Name/Lat/Lon lazım.
+            foreach (var r in requests)
+            {
+                if (r.Station == null)
+                    r.Station = _db.Stations.Find(r.StationId);
+            }
 
+            // 1) AYARLAR
+            var settings = _db.SystemSettings.ToDictionary(s => s.Key, s => s.Value);
             double rentedCapacity = double.Parse(settings.GetValueOrDefault("RentedCapacity", "500"));
             double rentalCost = double.Parse(settings.GetValueOrDefault("RentalCost", "200"));
             double fuelCost = double.Parse(settings.GetValueOrDefault("FuelCost", "1"));
 
-            // --- 2) FIXED MOD = SADECE 3 ÖZMAL ARAÇ (DB'de kaç tane olursa olsun) ---
-            // unlimitedVehicles=false iken kesin 3 araç olsun diye burada sabitliyoruz
-            var ownedFleet = _db.Vehicles
-                .Where(v => !v.IsRented)
-                .OrderBy(v => v.Id)
-                .Take(3)
-                .ToList();
-
-            // --- 3) KARGO ELEME (TOPLAM SİSTEM KAPASİTESİNE GÖRE) ---
+            // 2) TOPLAM SİSTEM KAPASİTESİNE GÖRE ÖN ELEME (fixed filo ise)
+            //    Bu sadece “toplam kapasite yetmiyor” durumunda çalışır.
             List<CargoRequest> acceptedRequests;
+            List<CargoRequest> preRejected = new List<CargoRequest>();
+
             if (!unlimitedVehicles)
             {
-                double maxSystemCapacity = ownedFleet.Sum(v => (double)v.CapacityKg);
+                double maxSystemCapacity =
+                    _db.Vehicles.Where(v => !v.IsRented).Sum(v => (double?)v.CapacityKg) ?? 0;
+
                 double currentLoad = 0;
                 acceptedRequests = new List<CargoRequest>();
 
-                List<CargoRequest> sortedCargos =
-                    (strategy == 1)
-                        ? requests.OrderBy(r => r.TotalWeightKg).ToList()            // Max Adet (hafifler önce)
-                        : requests.OrderByDescending(r => r.TotalWeightKg).ToList(); // Max Ağırlık
+                List<CargoRequest> sorted;
+                if (strategy == 1) sorted = requests.OrderBy(r => r.TotalWeightKg).ToList();              // max adet: hafifler
+                else sorted = requests.OrderByDescending(r => r.TotalWeightKg).ToList();                 // max ağırlık: ağırdan
 
-                foreach (var req in sortedCargos)
+                foreach (var req in sorted)
                 {
                     if (currentLoad + req.TotalWeightKg <= maxSystemCapacity)
                     {
                         acceptedRequests.Add(req);
                         currentLoad += req.TotalWeightKg;
                     }
-                    // burada rejected'a eklemeye gerek yok:
-                    // çünkü en sonda "gerçek rejected = input - shipped" hesaplayacağız
+                    else
+                    {
+                        preRejected.Add(req);
+                    }
                 }
             }
             else
@@ -92,66 +95,68 @@ namespace yazlab3.web.Services
                 acceptedRequests = requests;
             }
 
-            // --- 4) GRUPLAMA (İSTASYON DEMAND) ---
+            // 3) DEMAND = HER CARGO REQUEST AYRI (BÖYLECE AYNI İSTASYON İÇİN BİRDEN FAZLA ARAÇ YÜK ALABİLİR)
             var stationIds = acceptedRequests.Select(r => r.StationId).Distinct().ToList();
-            var stationMap = _db.Stations
-                .Where(s => stationIds.Contains(s.Id))
-                .ToDictionary(s => s.Id);
+            var stationMap = _db.Stations.Where(s => stationIds.Contains(s.Id))
+                                         .ToDictionary(s => s.Id);
 
             var demands = acceptedRequests
-                .GroupBy(r => r.StationId)
-                .Select(g => new StationDemandInternal
+                .Select(r => new StationDemandInternal
                 {
-                    StationId = g.Key,
-                    Station = stationMap[g.Key],
-                    CargoCount = g.Sum(x => x.CargoCount),
-                    TotalWeightKg = g.Sum(x => x.TotalWeightKg),
-                    IncludedRequestIds = g.Select(x => x.Id).ToList(),
-                    LoadedCargos = g.Select(x => new
+                    StationId = r.StationId,
+                    Station = stationMap[r.StationId],
+                    CargoCount = r.CargoCount,
+                    TotalWeightKg = r.TotalWeightKg,
+                    IncludedRequestIds = new List<int> { r.Id },
+                    LoadedCargos = new List<object>
                     {
-                        cargoId = x.Id,
-                        userName = x.User?.Username ?? "Bilinmeyen",
-                        weight = x.TotalWeightKg,
-                        count = x.CargoCount,
-                        requestDate = x.RequestDate
-                    }).Cast<object>().ToList()
+                        new
+                        {
+                            cargoId = r.Id,
+                            userName = r.User?.Username ?? "Bilinmeyen",
+                            weight = r.TotalWeightKg,
+                            count = r.CargoCount,
+                            requestDate = r.RequestDate
+                        }
+                    }
                 })
                 .OrderByDescending(d => d.TotalWeightKg)
                 .ToList();
 
-            // --- 5) ARAÇ ATAMA ---
-            // unlimitedVehicles=false => sadece 3 özmal
-            // unlimitedVehicles=true  => DB'deki tüm özmal + gerekirse kiralık oluştur
-            var availableVehicles = unlimitedVehicles
-                ? _db.Vehicles.Where(v => !v.IsRented).OrderBy(v => v.CapacityKg).ToList()
-                : ownedFleet.OrderBy(v => v.CapacityKg).ToList();
+            // 4) ARAÇ ATAMA
+            var availableVehicles = _db.Vehicles.Where(v => !v.IsRented)
+                                                .OrderBy(v => v.CapacityKg)
+                                                .ToList();
 
             var plannedRoutes = new List<PlannedRoute>();
 
             foreach (var demand in demands)
             {
-                // Mevcut rotalara eklenebiliyorsa ekle
-                if (TryInsertIntoExistingRoute(plannedRoutes, demand, rentalCost, fuelCost))
+                // ✅ EN KRİTİK FIX:
+                // Sabit filo modunda “extraCost < rentalCost” kıyası yapılmayacak.
+                // Çünkü kiralama yok -> mecbur mevcut rotaya eklemeye çalış.
+                if (TryInsertIntoExistingRoute(plannedRoutes, demand, rentalCost, fuelCost, unlimitedVehicles))
                     continue;
 
-                // Yeni araç seç
+                // yeni rota aç
                 var vehicle = availableVehicles.FirstOrDefault(v => v.CapacityKg >= demand.TotalWeightKg);
 
                 if (vehicle == null)
                 {
                     if (!unlimitedVehicles)
                     {
-                        // fixed mod: kiralık yok => bu demand taşınamayacak
-                        // (Rejected hesaplamasını en sonda input-shipped ile yapacağız)
+                        // Sabit filoda yeni araç açamıyoruz => reject
+                        // demand zaten 1 request içeriyor ama yine de genel bırakalım:
+                        // (rejected listesi en sonda shippedIds ile kesin hesaplanacak)
                         continue;
                     }
 
-                    // unlimited: kiralık aç
+                    // unlimited ise kiralık araç aç
                     vehicle = new Vehicle
                     {
                         CapacityKg = (int)rentedCapacity,
                         IsRented = true,
-                        RentalCost = (int)rentalCost
+                        RentalCost = rentalCost
                     };
                     _db.Vehicles.Add(vehicle);
                     _db.SaveChanges();
@@ -167,37 +172,40 @@ namespace yazlab3.web.Services
                     UsedCapacityKg = demand.TotalWeightKg,
                     TotalDistanceKm = 0
                 };
+
                 newRoute.Stops.Add(demand);
                 plannedRoutes.Add(newRoute);
             }
 
-            // --- 6) ROTA OLUŞTURMA ---
+            // 5) ROUTE OLUŞTURMA (Aynı istasyon tekrarlarını tek stop’a indir)
             var routes = new List<Route>();
-            var depot = _db.Stations.Find(99);
-            if (depot == null)
-                depot = new Station { Id = 99, Name = "Depo", Latitude = 40.765, Longitude = 29.940 };
 
             foreach (var planned in plannedRoutes)
             {
+                var consolidatedStops = ConsolidateStopsByStation(planned.Stops);
+
                 double totalDist = 0;
                 List<double[]> fullPathCoordinates = new List<double[]>();
 
-                if (planned.Stops.Count > 0)
+                var depot = _db.Stations.Find(99)
+                           ?? new Station { Id = 99, Name = "Depo", Latitude = 40.765, Longitude = 29.940 };
+
+                if (consolidatedStops.Count > 0)
                 {
-                    var firstStop = planned.Stops[0].Station;
+                    var firstStop = consolidatedStops[0].Station;
                     totalDist += CalculateDistanceKm(depot, firstStop);
                     fullPathCoordinates.AddRange(GetPathCoordinates(99, firstStop.Id));
+
+                    for (int i = 0; i < consolidatedStops.Count - 1; i++)
+                    {
+                        var s1 = consolidatedStops[i].Station;
+                        var s2 = consolidatedStops[i + 1].Station;
+                        totalDist += CalculateDistanceKm(s1, s2);
+                        fullPathCoordinates.AddRange(GetPathCoordinates(s1.Id, s2.Id));
+                    }
                 }
 
-                for (int i = 0; i < planned.Stops.Count - 1; i++)
-                {
-                    var s1 = planned.Stops[i].Station;
-                    var s2 = planned.Stops[i + 1].Station;
-                    totalDist += CalculateDistanceKm(s1, s2);
-                    fullPathCoordinates.AddRange(GetPathCoordinates(s1.Id, s2.Id));
-                }
-
-                totalDist += planned.TotalDistanceKm;
+                // Not: Dönüş koordinatı frontend MapToDto içinde zaten ekleniyor.
 
                 var route = new Route
                 {
@@ -205,7 +213,7 @@ namespace yazlab3.web.Services
                     Vehicle = planned.Vehicle,
                     TotalDistanceKm = Math.Round(totalDist, 2),
                     PathCoordinates = fullPathCoordinates,
-                    ExactCargoIds = planned.Stops.SelectMany(s => s.IncludedRequestIds).ToList()
+                    ExactCargoIds = consolidatedStops.SelectMany(s => s.IncludedRequestIds).Distinct().ToList()
                 };
 
                 double baseCost = route.TotalDistanceKm * fuelCost;
@@ -213,9 +221,9 @@ namespace yazlab3.web.Services
                 route.TotalCost = Math.Round(baseCost + extraRent, 2);
 
                 var routeStations = new List<RouteStation>();
-                for (int i = 0; i < planned.Stops.Count; i++)
+                for (int i = 0; i < consolidatedStops.Count; i++)
                 {
-                    var stop = planned.Stops[i];
+                    var stop = consolidatedStops[i];
                     routeStations.Add(new RouteStation
                     {
                         StationId = stop.StationId,
@@ -224,19 +232,24 @@ namespace yazlab3.web.Services
                         LoadedCargos = stop.LoadedCargos
                     });
                 }
-                route.RouteStations = routeStations;
 
+                route.RouteStations = routeStations;
                 routes.Add(route);
             }
 
-            // --- 7) ✅ GERÇEK REJECTED = INPUT - SHIPPED (asla kaçmaz) ---
-            var shippedIds = routes
-                .SelectMany(r => r.ExactCargoIds ?? new List<int>())
-                .ToHashSet();
+            // 6) ✅ GERÇEK REJECT HESABI (EN SAĞLAM YER)
+            // “Planlama sürecinde” bir yerde sessizce düşen olursa bile burada kesin yakalanır.
+            var shippedIds = routes.SelectMany(r => r.ExactCargoIds ?? new List<int>())
+                                   .ToHashSet();
 
-            var trueRejected = requests
-                .Where(req => !shippedIds.Contains(req.Id))
-                .ToList();
+            var trueRejected = requests.Where(req => !shippedIds.Contains(req.Id)).ToList();
+
+            // Station null ise doldur (rejected summary için)
+            foreach (var rr in trueRejected)
+            {
+                if (rr.Station == null)
+                    rr.Station = _db.Stations.Find(rr.StationId);
+            }
 
             return new RoutePlanResult
             {
@@ -245,22 +258,31 @@ namespace yazlab3.web.Services
             };
         }
 
-        // --- YARDIMCI METOTLAR ---
-
-        private bool TryInsertIntoExistingRoute(List<PlannedRoute> plannedRoutes, StationDemandInternal demand, double rentalCost, double fuelCost)
+        // ✅ Sabit filo modunda rentalCost eşiği yok.
+        private bool TryInsertIntoExistingRoute(
+            List<PlannedRoute> plannedRoutes,
+            StationDemandInternal demand,
+            double rentalCost,
+            double fuelCost,
+            bool unlimitedVehicles)
         {
             PlannedRoute bestRoute = null;
             double minCostIncrease = double.MaxValue;
 
             foreach (var route in plannedRoutes)
             {
-                if (route.UsedCapacityKg + demand.TotalWeightKg > route.Vehicle.CapacityKg) continue;
+                if (route.UsedCapacityKg + demand.TotalWeightKg > route.Vehicle.CapacityKg)
+                    continue;
 
                 double extraDistance = CalculateInsertionExtraDistance(route, demand);
                 double extraCost = extraDistance * fuelCost;
 
-                // ekstra cost kiralamadan ucuzsa ekle
-                if (extraCost < minCostIncrease && extraCost < rentalCost)
+                // unlimitedVehicles=true => “eklemek mi daha mantıklı, kiralamak mı?” kıyası anlamlı
+                // unlimitedVehicles=false => kiralama yok => sadece en düşük extraCost’u seç
+                bool allowed =
+                    (!unlimitedVehicles) || (extraCost < rentalCost);
+
+                if (allowed && extraCost < minCostIncrease)
                 {
                     minCostIncrease = extraCost;
                     bestRoute = route;
@@ -273,16 +295,50 @@ namespace yazlab3.web.Services
                 bestRoute.UsedCapacityKg += demand.TotalWeightKg;
                 return true;
             }
+
             return false;
+        }
+
+        private List<StationDemandInternal> ConsolidateStopsByStation(List<StationDemandInternal> stops)
+        {
+            var map = new Dictionary<int, StationDemandInternal>();
+            var order = new List<int>();
+
+            foreach (var s in stops)
+            {
+                if (!map.TryGetValue(s.StationId, out var acc))
+                {
+                    acc = new StationDemandInternal
+                    {
+                        StationId = s.StationId,
+                        Station = s.Station,
+                        CargoCount = 0,
+                        TotalWeightKg = 0,
+                        IncludedRequestIds = new List<int>(),
+                        LoadedCargos = new List<object>()
+                    };
+                    map[s.StationId] = acc;
+                    order.Add(s.StationId);
+                }
+
+                acc.CargoCount += s.CargoCount;
+                acc.TotalWeightKg += s.TotalWeightKg;
+                acc.IncludedRequestIds.AddRange(s.IncludedRequestIds);
+                acc.LoadedCargos.AddRange(s.LoadedCargos);
+            }
+
+            return order.Select(id => map[id]).ToList();
         }
 
         private double CalculateInsertionExtraDistance(PlannedRoute route, StationDemandInternal demand)
         {
             var depot = _db.Stations.Find(99) ?? new Station { Latitude = 40.765, Longitude = 29.940 };
 
-            if (route.Stops.Count == 0) return CalculateDistanceKm(depot, demand.Station) * 2;
+            if (route.Stops.Count == 0)
+                return CalculateDistanceKm(depot, demand.Station) * 2;
 
             double bestExtra = double.MaxValue;
+
             for (int i = 0; i <= route.Stops.Count; i++)
             {
                 Station prev = (i == 0) ? depot : route.Stops[i - 1].Station;
@@ -291,9 +347,9 @@ namespace yazlab3.web.Services
                 double currentDist = CalculateDistanceKm(prev, next);
                 double newDist = CalculateDistanceKm(prev, demand.Station) + CalculateDistanceKm(demand.Station, next);
 
-                if (newDist - currentDist < bestExtra)
-                    bestExtra = newDist - currentDist;
+                bestExtra = Math.Min(bestExtra, newDist - currentDist);
             }
+
             return bestExtra;
         }
 
@@ -332,7 +388,8 @@ namespace yazlab3.web.Services
 
             if (_osmParser.Nodes == null || !_osmParser.Nodes.Any())
             {
-                return new List<double[]> {
+                return new List<double[]>
+                {
                     new double[] { startStation.Latitude, startStation.Longitude },
                     new double[] { endStation.Latitude, endStation.Longitude }
                 };
@@ -351,8 +408,8 @@ namespace yazlab3.web.Services
                     foreach (var endId in endCandidates)
                     {
                         if (startId == endId) continue;
-                        var pathNodeIds = RunDijkstraOnOsm(startId, endId);
 
+                        var pathNodeIds = RunDijkstraOnOsm(startId, endId);
                         if (pathNodeIds != null && pathNodeIds.Count > 1)
                         {
                             return pathNodeIds
@@ -369,7 +426,8 @@ namespace yazlab3.web.Services
             {
                 if (fromStationId != toStationId)
                 {
-                    return new List<double[]> {
+                    return new List<double[]>
+                    {
                         new double[] { startStation.Latitude, startStation.Longitude },
                         new double[] { endStation.Latitude, endStation.Longitude }
                     };
@@ -468,7 +526,9 @@ namespace yazlab3.web.Services
 
                         if (newDist < oldDist)
                         {
-                            if (oldDist < double.PositiveInfinity) pq.Remove((oldDist, edge.TargetId));
+                            if (oldDist < double.PositiveInfinity)
+                                pq.Remove((oldDist, edge.TargetId));
+
                             dist[edge.TargetId] = newDist;
                             prev[edge.TargetId] = currentId;
                             pq.Add((newDist, edge.TargetId));

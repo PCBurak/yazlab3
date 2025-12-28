@@ -29,7 +29,6 @@ namespace yazlab3.web.Controllers
         {
             var rows = ScenarioData.GetScenario(dto.ScenarioId);
 
-            // İstasyonları çek
             var stations = _db.Stations.AsNoTracking().ToList();
             var stationMap = stations.ToDictionary(s => Normalize(s.Name), s => s);
 
@@ -41,7 +40,6 @@ namespace yazlab3.web.Controllers
 
             foreach (var r in rows)
             {
-                // boş satırları geç
                 if (r.CargoCount <= 0 || r.TotalWeightKg <= 0) continue;
 
                 if (!stationMap.TryGetValue(Normalize(r.StationName), out var station))
@@ -50,28 +48,18 @@ namespace yazlab3.web.Controllers
                     continue;
                 }
 
-                // ✅ TOPLAM KG'Yİ BOZMAYAN SPLIT:
-                // örn 220kg / 15 => 14,14,... ve kalan 10 taneye +1
-                int baseW = r.TotalWeightKg / r.CargoCount;
-                int rem = r.TotalWeightKg % r.CargoCount;
+                double avgWeight = (double)r.TotalWeightKg / r.CargoCount;
 
                 for (int i = 0; i < r.CargoCount; i++)
                 {
-                    int w = baseW + (i < rem ? 1 : 0);
-                    if (w <= 0) w = 1;
-
                     cargoEntities.Add(new CargoRequest
                     {
                         Id = tempIdCounter++,
                         StationId = station.Id,
                         Station = station,
                         CargoCount = 1,
-                        TotalWeightKg = w,
-                        RequestDate = DateTime.Now.AddMinutes(-rng.Next(1, 1000)),
-                        ReceiverName = "Senaryo",
-                        CargoType = "Standart",
-                        UserId = 0,
-                        User = null
+                        TotalWeightKg = Math.Max(1, (int)Math.Round(avgWeight)),
+                        RequestDate = DateTime.Now.AddMinutes(-rng.Next(1, 1000))
                     });
                 }
             }
@@ -79,10 +67,8 @@ namespace yazlab3.web.Controllers
             if (missing.Count > 0)
                 return BadRequest(new { message = "Stations missing in DB", missing });
 
-            // Algoritmayı çalıştır
             var result = _routeService.PlanRoutes(cargoEntities, dto.UnlimitedVehicles, dto.Strategy);
 
-            // Route DTO
             var routesDto = result.Routes.Select(r => MapToDto(r, cargoEntities)).ToList();
 
             // Rejected özetini istasyon bazında grupla
@@ -95,33 +81,33 @@ namespace yazlab3.web.Controllers
                     weight = g.Sum(x => x.TotalWeightKg),
                     reason = "Kapasite Yetersiz"
                 })
-                .OrderByDescending(x => x.weight)
                 .ToList();
 
-            // Meta (kesin doğrulama)
             int totalInputKg = cargoEntities.Sum(x => x.TotalWeightKg);
-            int shippedKg = result.Routes.SelectMany(r => r.ExactCargoIds).Join(cargoEntities, id => id, c => c.Id, (id, c) => c.TotalWeightKg).Sum();
-            int rejectedKg = result.RejectedRequests.Sum(x => x.TotalWeightKg);
+            int shippedKg = result.Routes.SelectMany(r => r.ExactCargoIds)
+                .Join(cargoEntities, id => id, c => c.Id, (id, c) => c.TotalWeightKg)
+                .Sum();
 
-            var meta = new
-            {
-                scenarioId = dto.ScenarioId,
-                unlimitedVehicles = dto.UnlimitedVehicles,
-                strategy = dto.Strategy,
-                totalInputKg = totalInputKg,
-                shippedKg = shippedKg,
-                rejectedKg = rejectedKg,
-                shippedCount = result.Routes.SelectMany(r => r.ExactCargoIds).Count(),
-                rejectedCount = result.RejectedRequests.Count
-            };
+            int rejectedKg = result.RejectedRequests.Sum(x => x.TotalWeightKg);
 
             return Ok(new
             {
                 routes = routesDto,
                 rejectedCargos = rejectedSummary,
-                meta = meta
+                meta = new
+                {
+                    scenarioId = dto.ScenarioId,
+                    unlimitedVehicles = dto.UnlimitedVehicles,
+                    strategy = dto.Strategy,
+                    totalInputKg,
+                    shippedKg,
+                    rejectedKg,
+                    shippedCount = result.Routes.SelectMany(r => r.ExactCargoIds).Distinct().Count(),
+                    rejectedCount = result.RejectedRequests.Count
+                }
             });
         }
+
 
         [HttpPost("plan-dynamic")]
         public IActionResult PlanDynamicRoutes([FromBody] bool unlimitedVehicles)
