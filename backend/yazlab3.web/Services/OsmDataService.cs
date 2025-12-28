@@ -26,7 +26,6 @@ namespace yazlab3.web.Services
                         var p1 = coordinates[i];
                         var p2 = coordinates[i + 1];
 
-                        // ✅ DÜZELTME: Koordinatları yuvarlayarak ID oluştur (Hassasiyet Kaymasını Önler)
                         double lat1 = Math.Round((double)p1[1], 6);
                         double lon1 = Math.Round((double)p1[0], 6);
                         double lat2 = Math.Round((double)p2[1], 6);
@@ -48,7 +47,7 @@ namespace yazlab3.web.Services
 
             double dist = CalculateHaversine(lat1, lon1, lat2, lon2);
             Nodes[id1].Edges.Add(new OsmEdge { TargetId = id2, Distance = dist });
-            Nodes[id2].Edges.Add(new OsmEdge { TargetId = id1, Distance = dist }); // Çift yönlü yol
+            Nodes[id2].Edges.Add(new OsmEdge { TargetId = id1, Distance = dist });
         }
 
         private double CalculateHaversine(double lat1, double lon1, double lat2, double lon2)

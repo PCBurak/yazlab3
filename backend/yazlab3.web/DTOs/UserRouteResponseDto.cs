@@ -10,7 +10,6 @@ namespace yazlab3.web.DTOs
 
         public List<StationRouteDto> Route { get; set; } = new();
 
-        // NEW: Full zig-zag path for the map line
         public List<double[]> PathCoordinates { get; set; } = new();
     }
 

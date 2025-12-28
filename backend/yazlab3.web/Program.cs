@@ -14,7 +14,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton<OsmDataService>(sp =>
 {
     var parser = new OsmDataService();
-    // GeoJSON dosyasının yolunu belirtin (Data klasöründe olduğunu varsayıyoruz)
     var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "kocaeli.geojson");
 
     if (File.Exists(filePath))
@@ -28,7 +27,6 @@ builder.Services.AddScoped<ICostService, CostService>();
 builder.Services.AddScoped<IRoutePlanningService, RoutePlanningService>();
 builder.Services.AddScoped<IUserRouteService, UserRouteService>();
 
-// ✅ CORS: allow React dev server (Vite)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
@@ -45,8 +43,6 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
-
-    // ✅ Only redirect to HTTPS in Production
     app.UseHttpsRedirection();
 }
 
@@ -54,7 +50,6 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ✅ CORS must be after routing and before auth/endpoints
 app.UseCors("AllowReact");
 
 app.UseAuthorization();

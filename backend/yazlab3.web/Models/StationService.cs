@@ -12,7 +12,6 @@ namespace yazlab3.web.Models
         public int ToStationId { get; set; }
         public Station ToStation { get; set; }
 
-        // Yol uzunluğu (km) – KUŞ UÇUŞU DEĞİL!
         public double DistanceKm { get; set; }
     }
 }

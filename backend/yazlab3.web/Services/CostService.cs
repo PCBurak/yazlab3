@@ -18,10 +18,8 @@ namespace yazlab3.web.Services
 
         public double CalculateRouteCost(double distanceKm, bool isRented)
         {
-            // ✅ Settings'i "trim + case-insensitive" çek (FuelCost / fuelcost / FuelCost  vs.)
             var settings = LoadSettingsDictionary();
 
-            // ✅ parse güvenli (., , fark etmez)
             double fuelCost = ReadDouble(settings, "FuelCost", 1.0);
             double rentalCostSetting = ReadDouble(settings, "RentalCost", 200.0);
 
@@ -35,13 +33,12 @@ namespace yazlab3.web.Services
         {
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            // AsNoTracking = performans + gereksiz tracking yok
             foreach (var s in _db.SystemSettings.AsNoTracking())
             {
                 var key = (s.Key ?? string.Empty).Trim();
                 if (key.Length == 0) continue;
 
-                dict[key] = (s.Value ?? string.Empty).Trim(); // duplicate key varsa son değer geçerli
+                dict[key] = (s.Value ?? string.Empty).Trim();
             }
 
             return dict;
@@ -54,13 +51,10 @@ namespace yazlab3.web.Services
 
             raw = raw.Trim();
 
-            // 1) Invariant (nokta) dene
             if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var v)) return v;
 
-            // 2) CurrentCulture (virgül) dene
             if (double.TryParse(raw, NumberStyles.Float, CultureInfo.CurrentCulture, out v)) return v;
 
-            // 3) "1,5" -> "1.5" normalize edip tekrar dene
             var normalized = raw.Replace(',', '.');
             if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out v)) return v;
 

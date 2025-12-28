@@ -5,6 +5,6 @@
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-        public string Role { get; set; } = "User"; // Can be "Admin" or "User"
+        public string Role { get; set; } = "User";
     }
 }

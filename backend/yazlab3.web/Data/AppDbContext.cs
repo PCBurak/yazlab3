@@ -20,35 +20,30 @@ namespace yazlab3.web.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // CargoRequest → Station
             modelBuilder.Entity<CargoRequest>()
                 .HasOne(c => c.Station)
                 .WithMany()
                 .HasForeignKey(c => c.StationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Route → Vehicle
             modelBuilder.Entity<Route>()
                 .HasOne(r => r.Vehicle)
                 .WithMany()
                 .HasForeignKey(r => r.VehicleId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // RouteStation → Route
             modelBuilder.Entity<RouteStation>()
                 .HasOne(rs => rs.Route)
                 .WithMany(r => r.RouteStations)
                 .HasForeignKey(rs => rs.RouteId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // RouteStation → Station
             modelBuilder.Entity<RouteStation>()
                 .HasOne(rs => rs.Station)
                 .WithMany()
                 .HasForeignKey(rs => rs.StationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // StationDistance (graph edges)
             modelBuilder.Entity<StationDistance>()
                 .HasOne(sd => sd.FromStation)
                 .WithMany()
@@ -61,7 +56,6 @@ namespace yazlab3.web.Data
                 .HasForeignKey(sd => sd.ToStationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // 1. SEED STATIONS (Districts of Kocaeli)
             modelBuilder.Entity<Station>().HasData(
                 new Station { Id = 1, Name = "Başiskele", Latitude = 40.7150, Longitude = 29.9270 },
                 new Station { Id = 2, Name = "Çayırova", Latitude = 40.8190, Longitude = 29.3730 },
@@ -79,60 +73,45 @@ namespace yazlab3.web.Data
             );
 
             modelBuilder.Entity<StationDistance>().HasData(
-    // 1. Başiskele Neighbors
-    new StationDistance { Id = 1, FromStationId = 1, ToStationId = 12, DistanceKm = 10 }, // -> İzmit
-    new StationDistance { Id = 2, FromStationId = 1, ToStationId = 7, DistanceKm = 15 },  // -> Gölcük
-    new StationDistance { Id = 3, FromStationId = 1, ToStationId = 10, DistanceKm = 12 }, // -> Kartepe
+    new StationDistance { Id = 1, FromStationId = 1, ToStationId = 12, DistanceKm = 10 },
+    new StationDistance { Id = 2, FromStationId = 1, ToStationId = 7, DistanceKm = 15 },
+    new StationDistance { Id = 3, FromStationId = 1, ToStationId = 10, DistanceKm = 12 },
 
-    // 2. Gölcük Neighbors
-    new StationDistance { Id = 4, FromStationId = 7, ToStationId = 1, DistanceKm = 15 },  // -> Başiskele
-    new StationDistance { Id = 5, FromStationId = 7, ToStationId = 9, DistanceKm = 18 },  // -> Karamürsel
+    new StationDistance { Id = 4, FromStationId = 7, ToStationId = 1, DistanceKm = 15 },
+    new StationDistance { Id = 5, FromStationId = 7, ToStationId = 9, DistanceKm = 18 },
 
-    // 3. Karamürsel Neighbors
-    new StationDistance { Id = 6, FromStationId = 9, ToStationId = 7, DistanceKm = 18 },  // -> Gölcük
+    new StationDistance { Id = 6, FromStationId = 9, ToStationId = 7, DistanceKm = 18 },
 
-    // 4. İzmit Neighbors (Central Hub)
-    new StationDistance { Id = 7, FromStationId = 12, ToStationId = 1, DistanceKm = 10 }, // -> Başiskele
-    new StationDistance { Id = 8, FromStationId = 12, ToStationId = 10, DistanceKm = 10 }, // -> Kartepe
-    new StationDistance { Id = 9, FromStationId = 12, ToStationId = 4, DistanceKm = 13 }, // -> Derince
-    new StationDistance { Id = 10, FromStationId = 12, ToStationId = 8, DistanceKm = 40 }, // -> Kandıra
+    new StationDistance { Id = 7, FromStationId = 12, ToStationId = 1, DistanceKm = 10 },
+    new StationDistance { Id = 8, FromStationId = 12, ToStationId = 10, DistanceKm = 10 },
+    new StationDistance { Id = 9, FromStationId = 12, ToStationId = 4, DistanceKm = 13 },
+    new StationDistance { Id = 10, FromStationId = 12, ToStationId = 8, DistanceKm = 40 },
 
-    // 5. Derince Neighbors
-    new StationDistance { Id = 11, FromStationId = 4, ToStationId = 12, DistanceKm = 13 }, // -> İzmit
-    new StationDistance { Id = 12, FromStationId = 4, ToStationId = 11, DistanceKm = 8 },  // -> Körfez
+    new StationDistance { Id = 11, FromStationId = 4, ToStationId = 12, DistanceKm = 13 },
+    new StationDistance { Id = 12, FromStationId = 4, ToStationId = 11, DistanceKm = 8 },
 
-    // 6. Körfez Neighbors
-    new StationDistance { Id = 13, FromStationId = 11, ToStationId = 4, DistanceKm = 8 },   // -> Derince
-    new StationDistance { Id = 14, FromStationId = 11, ToStationId = 5, DistanceKm = 16 },  // -> Dilovası
+    new StationDistance { Id = 13, FromStationId = 11, ToStationId = 4, DistanceKm = 8 },
+    new StationDistance { Id = 14, FromStationId = 11, ToStationId = 5, DistanceKm = 16 },
 
-    // 7. Dilovası Neighbors
-    new StationDistance { Id = 15, FromStationId = 5, ToStationId = 11, DistanceKm = 16 },  // -> Körfez
-    new StationDistance { Id = 16, FromStationId = 5, ToStationId = 6, DistanceKm = 10 },   // -> Gebze
+    new StationDistance { Id = 15, FromStationId = 5, ToStationId = 11, DistanceKm = 16 },
+    new StationDistance { Id = 16, FromStationId = 5, ToStationId = 6, DistanceKm = 10 },
 
-    // 8. Gebze Neighbors
-    new StationDistance { Id = 17, FromStationId = 6, ToStationId = 5, DistanceKm = 10 },   // -> Dilovası
-    new StationDistance { Id = 18, FromStationId = 6, ToStationId = 2, DistanceKm = 7 },    // -> Çayırova
-    new StationDistance { Id = 19, FromStationId = 6, ToStationId = 3, DistanceKm = 6 },    // -> Darıca
+    new StationDistance { Id = 17, FromStationId = 6, ToStationId = 5, DistanceKm = 10 },
+    new StationDistance { Id = 18, FromStationId = 6, ToStationId = 2, DistanceKm = 7 },
+    new StationDistance { Id = 19, FromStationId = 6, ToStationId = 3, DistanceKm = 6 },
 
-    // 9. Çayırova Neighbors
-    new StationDistance { Id = 20, FromStationId = 2, ToStationId = 6, DistanceKm = 7 },    // -> Gebze
-    new StationDistance { Id = 21, FromStationId = 2, ToStationId = 3, DistanceKm = 9 },    // -> Darıca
+    new StationDistance { Id = 20, FromStationId = 2, ToStationId = 6, DistanceKm = 7 },
+    new StationDistance { Id = 21, FromStationId = 2, ToStationId = 3, DistanceKm = 9 },
 
-    // 10. Darıca Neighbors
-    new StationDistance { Id = 22, FromStationId = 3, ToStationId = 6, DistanceKm = 6 },    // -> Gebze
-    new StationDistance { Id = 23, FromStationId = 3, ToStationId = 2, DistanceKm = 9 },    // -> Çayırova
+    new StationDistance { Id = 22, FromStationId = 3, ToStationId = 6, DistanceKm = 6 },
+    new StationDistance { Id = 23, FromStationId = 3, ToStationId = 2, DistanceKm = 9 },
 
-    // 11. Kandıra Neighbors
-    new StationDistance { Id = 24, FromStationId = 8, ToStationId = 12, DistanceKm = 40 }, // -> İzmit
+    new StationDistance { Id = 24, FromStationId = 8, ToStationId = 12, DistanceKm = 40 },
 
-    // 12. Kartepe Neighbors
-    new StationDistance { Id = 25, FromStationId = 10, ToStationId = 12, DistanceKm = 10 }, // -> İzmit
-    new StationDistance { Id = 26, FromStationId = 10, ToStationId = 1, DistanceKm = 12 }  // -> Başiskele
+    new StationDistance { Id = 25, FromStationId = 10, ToStationId = 12, DistanceKm = 10 },
+    new StationDistance { Id = 26, FromStationId = 10, ToStationId = 1, DistanceKm = 12 }
 );
 
-            // 2. SEED VEHICLES (Project Requirement: 3 initial vehicles)
-            // Capacities: 500, 750, 1000 kg [cite: 39]
-            // Rental Cost: 0 [cite: 38]
             modelBuilder.Entity<Vehicle>().HasData(
                 new Vehicle { Id = 1, CapacityKg = 500, IsRented = false, RentalCost = 0 },
                 new Vehicle { Id = 2, CapacityKg = 750, IsRented = false, RentalCost = 0 },
@@ -145,13 +124,7 @@ namespace yazlab3.web.Data
                 new User { Id = 3, Username = "user2", Password = "123", Role = "User" }
             );
 
-
-
-            // 2. CONNECT UMUTTEPE TO THE GRAPH
             modelBuilder.Entity<StationDistance>().HasData(
-                // ... keep your existing edges ...
-
-                // Connect Umuttepe <-> İzmit (Approx 10-15km)
                 new StationDistance { Id = 100, FromStationId = 99, ToStationId = 12, DistanceKm = 15 },
                 new StationDistance { Id = 101, FromStationId = 12, ToStationId = 99, DistanceKm = 15 }
             );

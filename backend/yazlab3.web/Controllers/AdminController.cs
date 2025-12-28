@@ -23,7 +23,6 @@ namespace yazlab3.web.Controllers
             _db = db;
         }
 
-        // --- SENARYO ÇALIŞTIRMA ---
         [HttpPost("run-scenario")]
         public IActionResult RunScenario([FromBody] ScenarioRunRequestDto dto)
         {
@@ -71,7 +70,6 @@ namespace yazlab3.web.Controllers
 
             var routesDto = result.Routes.Select(r => MapToDto(r, cargoEntities)).ToList();
 
-            // Rejected özetini istasyon bazında grupla
             var rejectedSummary = result.RejectedRequests
                 .GroupBy(x => x.StationId)
                 .Select(g => new
@@ -120,7 +118,6 @@ namespace yazlab3.web.Controllers
             _db.Routes.AddRange(result.Routes);
             _db.SaveChanges();
 
-            // DB modu: sourceList=null
             return Ok(result.Routes.Select(r => MapToDto(r, null)).ToList());
         }
 
@@ -161,7 +158,6 @@ namespace yazlab3.web.Controllers
             return Ok(response);
         }
 
-        // sourceList doluysa senaryo modundan okur, null ise DB'den okur
         private UserRouteResponseDto MapToDto(Route r, List<CargoRequest> sourceList)
         {
             var sortedStops = r.RouteStations.OrderBy(rs => rs.Order).ToList();

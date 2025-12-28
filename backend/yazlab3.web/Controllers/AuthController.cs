@@ -19,13 +19,11 @@ namespace yazlab3.web.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequestDto request)
         {
-            // Simple check: Does a user exist with this Name AND Password?
             var user = _db.Users.FirstOrDefault(u => u.Username == request.Username && u.Password == request.Password);
 
             if (user == null)
                 return Unauthorized(new { message = "Invalid username or password" });
 
-            // Return the user info so the Frontend knows who is logged in
             return Ok(new
             {
                 id = user.Id,
@@ -37,18 +35,16 @@ namespace yazlab3.web.Controllers
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterRequestDto request)
         {
-            // 1. Check if user already exists
             if (_db.Users.Any(u => u.Username == request.Username))
             {
                 return BadRequest(new { message = "Username already exists" });
             }
 
-            // 2. Create User
             var newUser = new User
             {
                 Username = request.Username,
                 Password = request.Password,
-                Role = request.Role // "Admin" or "User"
+                Role = request.Role
             };
 
             _db.Users.Add(newUser);
@@ -58,7 +54,6 @@ namespace yazlab3.web.Controllers
         }
     }
 
-    // Simple DTO for the data coming from React
     public class LoginRequestDto
     {
         public string Username { get; set; }

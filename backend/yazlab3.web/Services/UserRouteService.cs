@@ -19,7 +19,6 @@ namespace yazlab3.web.Services
 
         public UserRouteResponseDto CreateCargoAndAssignRoute(CargoRequestDto dto)
         {
-            // 1️⃣ Kargo talebini kaydet
             var cargo = new CargoRequest
             {
                 StationId = dto.StationId,
@@ -31,12 +30,8 @@ namespace yazlab3.web.Services
             _db.CargoRequests.Add(cargo);
             _db.SaveChanges();
 
-            // İstasyon bilgisini çek ki null gelmesin
             _db.Entry(cargo).Reference(c => c.Station).Load();
 
-            // 2️⃣ Sadece bu kargonun dahil olduğu küçük bir senaryo oluşturup
-            //     planlama algoritmasını çalıştır (unlimitedVehicles: true, strategy: 0)
-            // DÜZELTME: Dönüş tipi artık RoutePlanResult olduğu için .Routes listesine erişiyoruz
             var planResult = _routePlanningService.PlanRoutes(
                 new List<CargoRequest> { cargo },
                 unlimitedVehicles: true
@@ -46,8 +41,6 @@ namespace yazlab3.web.Services
 
             if (route == null)
             {
-                // Algoritma bir şey üretemezse en azından bir fallback (yedek) araç döndür
-                // Veritabanında en az 1 araç olduğundan emin olmalısın
                 var fallbackVehicle = _db.Vehicles.FirstOrDefault();
 
                 return new UserRouteResponseDto
@@ -60,22 +53,16 @@ namespace yazlab3.web.Services
                 };
             }
 
-            // 3️⃣ Oluşan rotayı veritabanına kaydet
             _db.Routes.Add(route);
             _db.SaveChanges();
 
-            // 4️⃣ Kullanıcıya döneceğimiz DTO'yu hazırla
-
-            // Harita için yol verisini (PathCoordinates) de ekleyelim
             var sortedStops = route.RouteStations.OrderBy(rs => rs.Order).ToList();
             var fullPath = new List<double[]>();
 
             if (sortedStops.Any())
             {
-                // Depo -> İlk Durak
                 fullPath.AddRange(_routePlanningService.GetPathCoordinates(99, sortedStops[0].StationId));
 
-                // Duraklar Arası
                 for (int i = 0; i < sortedStops.Count - 1; i++)
                 {
                     fullPath.AddRange(_routePlanningService.GetPathCoordinates(sortedStops[i].StationId, sortedStops[i + 1].StationId));
@@ -87,7 +74,7 @@ namespace yazlab3.web.Services
                 VehicleId = route.VehicleId,
                 TotalCost = route.TotalCost,
                 TotalDistanceKm = route.TotalDistanceKm,
-                PathCoordinates = fullPath, // Bunu ekledim, haritada çizgi çıksın diye
+                PathCoordinates = fullPath,
                 Route = sortedStops
                     .Select(rs => new StationRouteDto
                     {

@@ -18,7 +18,6 @@ namespace yazlab3.web.Controllers
             _db = db;
         }
 
-        // 1. GET: İstasyonları Listele (Dropdown için)
         [HttpGet("stations")]
         public IActionResult GetStations()
         {
@@ -29,7 +28,6 @@ namespace yazlab3.web.Controllers
             return Ok(stations);
         }
 
-        // 2. POST: Kargo Talebi Oluştur
         [HttpPost("create")]
         public IActionResult CreateRequest([FromBody] CreateCargoDto dto)
         {
@@ -40,13 +38,10 @@ namespace yazlab3.web.Controllers
 
             var request = new CargoRequest
             {
-                // Mevcut Değişkenler
                 StationId = dto.StationId,
                 TotalWeightKg = (int)dto.Weight,
-                CargoCount = 1, // Varsayılan 1 adet kabul ediyoruz
-                RequestDate = DateTime.Now, // Kayıt anı
-
-                // Yeni Eklenenler
+                CargoCount = 1,
+                RequestDate = DateTime.Now,
                 UserId = dto.UserId,
                 ReceiverName = dto.ReceiverName ?? "Belirtilmemiş",
                 CargoType = dto.CargoType ?? "Standart"
@@ -62,22 +57,18 @@ namespace yazlab3.web.Controllers
         [HttpGet("my-requests/{userId}")]
         public IActionResult GetUserRequests(int userId)
         {
-            // 1. Kullanıcının kargolarını çek
             var requests = _db.CargoRequests
                               .Include(r => r.Station)
                               .Where(r => r.UserId == userId)
                               .OrderByDescending(r => r.RequestDate)
                               .ToList();
 
-            // 2. Her kargo için durum ve rota bilgisi bul
             var result = requests.Select(req =>
             {
-                // Bu kargonun çıkış istasyonuna uğrayan bir Rota var mı?
-                // (Not: Basitlik adına, o istasyona uğrayan ilk rotayı alıyoruz)
                 var assignedRoute = _db.Routes
                                        .Include(r => r.RouteStations)
                                        .ThenInclude(rs => rs.Station)
-                                       .AsEnumerable() // Client-side evaluation gerekebilir
+                                       .AsEnumerable()
                                        .FirstOrDefault(r => r.RouteStations.Any(rs => rs.StationId == req.StationId));
 
                 bool isOnWay = assignedRoute != null;
@@ -90,8 +81,6 @@ namespace yazlab3.web.Controllers
                     Date = req.RequestDate.ToString("dd.MM.yyyy HH:mm"),
                     Status = isOnWay ? "Yolda (Dağıtımda)" : "Onay Bekliyor",
                     VehicleId = isOnWay ? assignedRoute.VehicleId : (int?)null,
-
-                    // Eğer yoldaysa, o aracın rotasını gönder (Harita çizimi için)
                     RoutePath = isOnWay ? assignedRoute.RouteStations
                                             .OrderBy(rs => rs.Order)
                                             .Select(rs => new { lat = rs.Station.Latitude, lng = rs.Station.Longitude })
@@ -105,10 +94,8 @@ namespace yazlab3.web.Controllers
         [HttpGet("by-station/{stationId}")]
         public IActionResult GetCargosByStation(int stationId)
         {
-            // Veritabanında bu istasyona ait kayıt var mı kontrol edelim
             var query = _db.CargoRequests.Where(c => c.StationId == stationId);
 
-            // Eğer hiç kayıt yoksa boş liste dön (Hata vermez, boş tablo gösterir)
             if (!query.Any())
             {
                 return Ok(new List<object>());
@@ -117,26 +104,21 @@ namespace yazlab3.web.Controllers
             var cargos = query
                 .Select(c => new
                 {
-                    // Senin CargoRequest modelindeki alanlar:
                     c.Id,
 
-                    // Eğer veritabanında bu alanlar NULL ise patlamasın diye kontrol koyuyoruz:
                     ReceiverName = c.ReceiverName ?? "Belirtilmemiş",
                     CargoType = c.CargoType ?? "Standart",
 
                     c.TotalWeightKg,
 
-                    // Tarih formatlaması
                     Date = c.RequestDate.ToString("dd.MM.yyyy HH:mm")
                 })
-                .OrderByDescending(x => x.Id) // En son eklenen en üstte
+                .OrderByDescending(x => x.Id)
                 .ToList();
 
             return Ok(cargos);
         }
     }
-
-    // Frontend'den veri taşıyan paket (DTO)
     public class CreateCargoDto
     {
         public int UserId { get; set; }

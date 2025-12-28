@@ -16,7 +16,6 @@ namespace yazlab3.web.Controllers
             _db = db;
         }
 
-        // 1. LİSTELE: Tüm istasyonları getir
         [HttpGet]
         public IActionResult GetAll()
         {
@@ -26,7 +25,6 @@ namespace yazlab3.web.Controllers
             return Ok(stations);
         }
 
-        // 2. EKLE: Yeni istasyon oluştur
         [HttpPost]
         public IActionResult Create([FromBody] Station station)
         {
@@ -41,7 +39,6 @@ namespace yazlab3.web.Controllers
             return Ok(new { message = "İstasyon başarıyla eklendi.", data = station });
         }
 
-        // 3. SİL: İstasyonu kaldır
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {

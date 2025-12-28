@@ -9,7 +9,7 @@ namespace yazlab3.web.Services
     public class RoutePlanningService : IRoutePlanningService
     {
         private readonly AppDbContext _db;
-        private readonly ICostService _costService; // durabilir
+        private readonly ICostService _costService;
         private readonly OsmDataService _osmParser;
 
         private readonly Dictionary<int, List<Edge>> _adjacency = new Dictionary<int, List<Edge>>();
@@ -46,22 +46,17 @@ namespace yazlab3.web.Services
             if (requests == null || requests.Count == 0)
                 return new RoutePlanResult();
 
-            // 0) NAVIGATION NULL ise doldur (senaryo modunda Station zaten geliyor, DB modunda bazen null yakalanıyor)
-            //    Not: AsNoTracking vs önemli değil; sadece Name/Lat/Lon lazım.
             foreach (var r in requests)
             {
                 if (r.Station == null)
                     r.Station = _db.Stations.Find(r.StationId);
             }
 
-            // 1) AYARLAR
             var settings = _db.SystemSettings.ToDictionary(s => s.Key, s => s.Value);
             double rentedCapacity = double.Parse(settings.GetValueOrDefault("RentedCapacity", "500"));
             double rentalCost = double.Parse(settings.GetValueOrDefault("RentalCost", "200"));
             double fuelCost = double.Parse(settings.GetValueOrDefault("FuelCost", "1"));
 
-            // 2) TOPLAM SİSTEM KAPASİTESİNE GÖRE ÖN ELEME (fixed filo ise)
-            //    Bu sadece “toplam kapasite yetmiyor” durumunda çalışır.
             List<CargoRequest> acceptedRequests;
             List<CargoRequest> preRejected = new List<CargoRequest>();
 
@@ -74,8 +69,8 @@ namespace yazlab3.web.Services
                 acceptedRequests = new List<CargoRequest>();
 
                 List<CargoRequest> sorted;
-                if (strategy == 1) sorted = requests.OrderBy(r => r.TotalWeightKg).ToList();              // max adet: hafifler
-                else sorted = requests.OrderByDescending(r => r.TotalWeightKg).ToList();                 // max ağırlık: ağırdan
+                if (strategy == 1) sorted = requests.OrderBy(r => r.TotalWeightKg).ToList();
+                else sorted = requests.OrderByDescending(r => r.TotalWeightKg).ToList();
 
                 foreach (var req in sorted)
                 {
@@ -95,7 +90,6 @@ namespace yazlab3.web.Services
                 acceptedRequests = requests;
             }
 
-            // 3) DEMAND = HER CARGO REQUEST AYRI (BÖYLECE AYNI İSTASYON İÇİN BİRDEN FAZLA ARAÇ YÜK ALABİLİR)
             var stationIds = acceptedRequests.Select(r => r.StationId).Distinct().ToList();
             var stationMap = _db.Stations.Where(s => stationIds.Contains(s.Id))
                                          .ToDictionary(s => s.Id);
@@ -123,7 +117,6 @@ namespace yazlab3.web.Services
                 .OrderByDescending(d => d.TotalWeightKg)
                 .ToList();
 
-            // 4) ARAÇ ATAMA
             var availableVehicles = _db.Vehicles.Where(v => !v.IsRented)
                                                 .OrderBy(v => v.CapacityKg)
                                                 .ToList();
@@ -132,26 +125,20 @@ namespace yazlab3.web.Services
 
             foreach (var demand in demands)
             {
-                // ✅ EN KRİTİK FIX:
-                // Sabit filo modunda “extraCost < rentalCost” kıyası yapılmayacak.
-                // Çünkü kiralama yok -> mecbur mevcut rotaya eklemeye çalış.
+
                 if (TryInsertIntoExistingRoute(plannedRoutes, demand, rentalCost, fuelCost, unlimitedVehicles))
                     continue;
 
-                // yeni rota aç
                 var vehicle = availableVehicles.FirstOrDefault(v => v.CapacityKg >= demand.TotalWeightKg);
 
                 if (vehicle == null)
                 {
                     if (!unlimitedVehicles)
                     {
-                        // Sabit filoda yeni araç açamıyoruz => reject
-                        // demand zaten 1 request içeriyor ama yine de genel bırakalım:
-                        // (rejected listesi en sonda shippedIds ile kesin hesaplanacak)
+
                         continue;
                     }
 
-                    // unlimited ise kiralık araç aç
                     vehicle = new Vehicle
                     {
                         CapacityKg = (int)rentedCapacity,
@@ -177,7 +164,6 @@ namespace yazlab3.web.Services
                 plannedRoutes.Add(newRoute);
             }
 
-            // 5) ROUTE OLUŞTURMA (Aynı istasyon tekrarlarını tek stop’a indir)
             var routes = new List<Route>();
 
             foreach (var planned in plannedRoutes)
@@ -204,8 +190,6 @@ namespace yazlab3.web.Services
                         fullPathCoordinates.AddRange(GetPathCoordinates(s1.Id, s2.Id));
                     }
                 }
-
-                // Not: Dönüş koordinatı frontend MapToDto içinde zaten ekleniyor.
 
                 var route = new Route
                 {
@@ -237,14 +221,11 @@ namespace yazlab3.web.Services
                 routes.Add(route);
             }
 
-            // 6) ✅ GERÇEK REJECT HESABI (EN SAĞLAM YER)
-            // “Planlama sürecinde” bir yerde sessizce düşen olursa bile burada kesin yakalanır.
             var shippedIds = routes.SelectMany(r => r.ExactCargoIds ?? new List<int>())
                                    .ToHashSet();
 
             var trueRejected = requests.Where(req => !shippedIds.Contains(req.Id)).ToList();
 
-            // Station null ise doldur (rejected summary için)
             foreach (var rr in trueRejected)
             {
                 if (rr.Station == null)
@@ -258,7 +239,6 @@ namespace yazlab3.web.Services
             };
         }
 
-        // ✅ Sabit filo modunda rentalCost eşiği yok.
         private bool TryInsertIntoExistingRoute(
             List<PlannedRoute> plannedRoutes,
             StationDemandInternal demand,
@@ -277,8 +257,6 @@ namespace yazlab3.web.Services
                 double extraDistance = CalculateInsertionExtraDistance(route, demand);
                 double extraCost = extraDistance * fuelCost;
 
-                // unlimitedVehicles=true => “eklemek mi daha mantıklı, kiralamak mı?” kıyası anlamlı
-                // unlimitedVehicles=false => kiralama yok => sadece en düşük extraCost’u seç
                 bool allowed =
                     (!unlimitedVehicles) || (extraCost < rentalCost);
 

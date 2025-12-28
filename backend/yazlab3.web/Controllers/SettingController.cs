@@ -23,8 +23,8 @@ namespace yazlab3.web.Controllers
 
             foreach (var item in settings)
             {
-                var key = item.Key?.Trim();   // ✅ normalize
-                var val = item.Value?.Trim(); // ✅ normalize
+                var key = item.Key?.Trim();
+                var val = item.Value?.Trim();
 
                 if (string.IsNullOrWhiteSpace(key))
                     continue;
@@ -37,7 +37,6 @@ namespace yazlab3.web.Controllers
                 }
                 else
                 {
-                    // ✅ KRİTİK: Yoksa ekle (Upsert)
                     _db.SystemSettings.Add(new SystemSetting
                     {
                         Key = key,
