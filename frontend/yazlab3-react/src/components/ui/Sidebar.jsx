@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom"; // Link yerine NavLink kullanmak daha iyi (active class için)
+import { NavLink } from "react-router-dom";
 import "../../styles/sidebar.css";
 
 export default function Sidebar({ role, onLogout }) {
@@ -9,25 +9,21 @@ export default function Sidebar({ role, onLogout }) {
   return (
     <nav
       className="sidebar-container"
-      // BU KISIM KRİTİK: Menüyü esnek kutu (flex) yapıp dikey hizalıyoruz
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        minHeight: "100vh", // Ekran boyu kadar yer kaplamasını garanti ediyoruz
+        minHeight: "100vh",
       }}
     >
-      {/* Menü elemanlarını kapsayan bu div'e 'flex: 1' veriyoruz.
-          Böylece bu alan kalan tüm boşluğu kaplar ve footer'ı en alta iter.
-      */}
+
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* 👑 ADMIN MENÜSÜ */}
         {isAdmin && (
           <ul className="nav-menu">
             <li className="nav-item">
               <NavLink
                 to="/admin"
-                end // Sadece tam /admin olduğunda aktif olsun
+                end
                 className={({ isActive }) => (isActive ? "active" : "")}
               >
                 <i className="fa-solid fa-chart-pie"></i>
@@ -74,8 +70,6 @@ export default function Sidebar({ role, onLogout }) {
                 <span>İstasyon Yönetimi</span>
               </NavLink>
             </li>
-
-            {/* Sidebar.jsx içinde isAdmin bloğunun en altına ekle */}
             <li className="nav-item">
               <NavLink
                 to="/admin/settings"
@@ -87,8 +81,6 @@ export default function Sidebar({ role, onLogout }) {
             </li>
           </ul>
         )}
-
-        {/* 📦 KULLANICI MENÜSÜ */}
         {isUser && (
           <ul className="nav-menu">
             <li className="nav-item">
@@ -124,9 +116,6 @@ export default function Sidebar({ role, onLogout }) {
           </ul>
         )}
       </div>
-
-      {/* 🚪 ALT BÖLÜM (ÇIKIŞ) */}
-      {/* Yukarıdaki div (flex:1) sayesinde bu kısım otomatik olarak en alta itilir */}
       <div className="sidebar-footer" style={{ marginTop: "auto" }}>
         <div
           className="nav-item logout-link"

@@ -11,7 +11,6 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "../styles/theme.css";
 
-// --- Leaflet İkon Ayarı ---
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
@@ -114,7 +113,6 @@ export default function RoutePlanning({ onLogout }) {
           </div>
         </header>
 
-        {/* --- AYARLAR PANELİ --- */}
         <div className="card" style={{ marginBottom: "20px", padding: "30px" }}>
           <h3
             style={{
@@ -135,7 +133,6 @@ export default function RoutePlanning({ onLogout }) {
           <div
             style={{ display: "flex", gap: "25px", alignItems: "flex-start" }}
           >
-            {/* Sınırsız Araç Kartı */}
             <div
               style={getBigCardStyle(mode === "unlimited")}
               onClick={() => setMode("unlimited")}
@@ -176,7 +173,6 @@ export default function RoutePlanning({ onLogout }) {
               )}
             </div>
 
-            {/* Sabit Filo Kartı */}
             <div
               style={getBigCardStyle(mode === "fixed")}
               onClick={() => setMode("fixed")}
@@ -314,7 +310,6 @@ export default function RoutePlanning({ onLogout }) {
           </div>
         </div>
 
-        {/* --- SONUÇ KARTI --- */}
         {result && (
           <div
             className="card"
@@ -328,7 +323,6 @@ export default function RoutePlanning({ onLogout }) {
               isolation: "isolate",
             }}
           >
-            {/* ÜST KATMAN: Sekmeler */}
             <div
               style={{
                 flex: "0 0 auto",
@@ -424,7 +418,6 @@ export default function RoutePlanning({ onLogout }) {
               )}
             </div>
 
-            {/* ALT KATMAN: İçerik */}
             <div
               style={{
                 flex: "1 1 auto",
@@ -433,7 +426,6 @@ export default function RoutePlanning({ onLogout }) {
                 overflowY: activeTab === "details" ? "auto" : "hidden",
               }}
             >
-              {/* HARİTA */}
               {activeTab === "map" && (
                 <MapContainer
                   center={[40.765, 29.94]}
@@ -469,7 +461,6 @@ export default function RoutePlanning({ onLogout }) {
                 </MapContainer>
               )}
 
-              {/* DETAYLAR */}
               {activeTab === "details" && (
                 <div style={{ padding: "20px", background: "#f8fafc" }}>
                   <div style={{ marginBottom: 20, display: "flex", gap: 15 }}>
@@ -813,7 +804,6 @@ export default function RoutePlanning({ onLogout }) {
           </div>
         )}
 
-        {/* --- KARGO DETAY MODALI --- */}
         {selectedCargo && (
           <div
             style={{

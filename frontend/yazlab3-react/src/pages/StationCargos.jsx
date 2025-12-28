@@ -10,7 +10,6 @@ export default function StationCargos({ onLogout }) {
   const [cargos, setCargos] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 1. Tüm İstasyonları Çek
   useEffect(() => {
     fetch("http://localhost:5014/api/stations")
       .then((res) => {
@@ -21,12 +20,10 @@ export default function StationCargos({ onLogout }) {
       .catch((err) => console.error("İstasyon hatası:", err));
   }, []);
 
-  // 2. İstasyon Seçilince Kargoları Çek
   const handleStationClick = (station) => {
     setSelectedStation(station);
     setLoading(true);
     
-    // API İsteği: Seçilen istasyon ID'sine göre kargoları getir
     fetch(`http://localhost:5014/api/cargo/by-station/${station.id}`)
       .then((res) => {
         if (!res.ok) throw new Error("Veri çekilemedi");
@@ -56,7 +53,6 @@ export default function StationCargos({ onLogout }) {
       <main className="main-content">
         <header className="content-header">
           <div>
-            {/* DÜZELTİLDİ: Garip textler silindi */}
             <h1>İstasyon Depo Durumu</h1>
             <p className="subtitle">İstasyonlardaki bekleyen yükleri ve ağırlıklarını inceleyin.</p>
           </div>
@@ -64,7 +60,6 @@ export default function StationCargos({ onLogout }) {
 
         <div className="dashboard-grid" style={{ gridTemplateColumns: "1fr 2fr" }}>
           
-          {/* SOL: İSTASYON LİSTESİ */}
           <Card className="card" style={{ height: "calc(100vh - 140px)", overflowY: "auto" }}>
             <CardHeader>
               <CardTitle>İstasyonlar</CardTitle>
@@ -95,7 +90,6 @@ export default function StationCargos({ onLogout }) {
             </CardContent>
           </Card>
 
-          {/* SAĞ: KARGO TABLOSU */}
           <Card className="card" style={{ height: "calc(100vh - 140px)", overflowY: "auto" }}>
             <CardHeader>
               <CardTitle>

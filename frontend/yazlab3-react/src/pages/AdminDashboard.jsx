@@ -5,8 +5,6 @@ import "../styles/theme.css";
 
 export default function AdminDashboard({ onLogout }) {
   const navigate = useNavigate();
-  
-  // İstatistikleri tutacak State
   const [stats, setStats] = useState({
     totalStations: 0,
     totalVehicles: 0,
@@ -17,7 +15,6 @@ export default function AdminDashboard({ onLogout }) {
   const [adminName, setAdminName] = useState("Yönetici");
 
   useEffect(() => {
-    // 1. LocalStorage'dan Kullanıcı Adını Çek
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -28,15 +25,12 @@ export default function AdminDashboard({ onLogout }) {
       }
     }
 
-    // 2. VERİTABANINDAN CANLI İSTATİSTİK ÇEK (Tek Endpoint)
     const fetchDashboardStats = async () => {
       try {
-        // Backend'de AdminController içine eklediğimiz 'stats' endpointine istek atıyoruz
         const response = await fetch("http://localhost:5014/api/admin/stats");
 
         if (response.ok) {
           const data = await response.json();
-          // Backend'den gelen veri yapısı: { totalStations: 12, totalVehicles: 5, ... }
           setStats({
             totalStations: data.totalStations || 0,
             totalVehicles: data.totalVehicles || 0,
@@ -54,7 +48,6 @@ export default function AdminDashboard({ onLogout }) {
     fetchDashboardStats();
   }, []);
 
-  // --- KART BİLEŞENİ ---
   const NavCard = ({ title, desc, icon, color, link }) => (
     <div 
         className="card nav-card" 
@@ -109,14 +102,12 @@ export default function AdminDashboard({ onLogout }) {
 
       <main className="main-content">
         
-        {/* --- HEADER --- */}
         <header className="content-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h1>Admin Paneli</h1>
             <p className="subtitle">Sistem yönetimi ve lojistik operasyon merkezi.</p>
           </div>
           
-          {/* PROFİL KARTI */}
           <div className="user-profile-card" style={{ 
               display: "flex", 
               alignItems: "center", 
@@ -148,8 +139,6 @@ export default function AdminDashboard({ onLogout }) {
             </div>
           </div>
         </header>
-
-        {/* --- İSTATİSTİKLER (CANLI) --- */}
         <section className="stats-grid" style={{marginBottom: "30px"}}>
             <div className="card stat-card">
                 <div className="p-4">
@@ -176,8 +165,6 @@ export default function AdminDashboard({ onLogout }) {
                 </div>
             </div>
         </section>
-
-        {/* --- HIZLI ERİŞİM MENÜSÜ --- */}
         <h3 style={{color: "#334155", marginBottom: "20px", paddingLeft: "5px", borderLeft: "4px solid #4f46e5", lineHeight: "1"}}>
             Hızlı Erişim & Operasyonlar
         </h3>

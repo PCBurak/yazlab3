@@ -1,4 +1,4 @@
-/* Paylaştığın Değişkenleri Buraya Entegre Ettik */
+
 .login-wrapper {
   --sidebar-bg: #0f172a;
   --main-bg: #f8fafc;
@@ -18,7 +18,6 @@
   font-family: "Inter", sans-serif;
 }
 
-/* Dekoratif Arka Plan */
 .bg-decoration {
   position: absolute;
   width: 400px;
@@ -108,7 +107,7 @@
 }
 
 .input-with-icon input,
-.input-with-icon select { /* Added Select support */
+.input-with-icon select {
   width: 100%;
   padding: 12px 14px 12px 42px;
   border: 1.5px solid var(--border-color);
@@ -116,7 +115,7 @@
   font-size: 15px;
   transition: all 0.2s ease;
   outline: none;
-  background: white; /* Ensure white background for selects */
+  background: white;
 }
 
 .input-with-icon input:focus,

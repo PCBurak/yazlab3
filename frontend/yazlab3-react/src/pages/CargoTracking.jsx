@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/ui/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'; // useMap eklendi
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import "../styles/theme.css";
 
-// Leaflet İkon Düzeltmesi
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -14,32 +13,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// --- YENİ EKLENEN BİLEŞEN: HARİTA DÜZELTİCİ ---
-// Bu bileşen haritanın gri kalmasını engeller ve seçilen kargoya zoom yapar.
 function MapHandler({ selectedCargo }) {
   const map = useMap();
 
   useEffect(() => {
-    // 1. Gri alan sorununu çözer (invalidateSize)
-    // Harita render olduktan kısa bir süre sonra boyutunu tekrar hesaplatıyoruz.
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 100);
 
-    // 2. Seçilen Kargoya Otomatik Odaklanma (Zoom)
     if (selectedCargo && selectedCargo.routePath && selectedCargo.routePath.length > 0) {
-      // Rota noktalarından bir sınır (bounds) oluştur
       const bounds = L.latLngBounds(selectedCargo.routePath.map(p => [p.lat, p.lng]));
       
-      // Haritayı o sınıra sığdır (biraz kenar boşluğu bırakarak)
       map.fitBounds(bounds, { padding: [50, 50] });
     } else {
-      // Kargo seçili değilse merkeze dön
       map.flyTo([40.765, 29.940], 10);
     }
 
     return () => clearTimeout(timer);
-  }, [map, selectedCargo]); // selectedCargo değiştiğinde tekrar çalışır
+  }, [map, selectedCargo]);
 
   return null;
 }
@@ -78,7 +69,6 @@ export default function CargoTracking({ onLogout }) {
 
         <div className="dashboard-grid" style={{ gridTemplateColumns: "1fr 2fr", height: "calc(100vh - 140px)" }}>
           
-          {/* SOL: KARGO LİSTESİ */}
           <Card className="card" style={{ height: "100%", overflowY: "auto" }}>
             <CardHeader>
               <CardTitle><i className="fa-solid fa-boxes-packing"></i> Gönderilerim</CardTitle>
@@ -128,12 +118,9 @@ export default function CargoTracking({ onLogout }) {
             </CardContent>
           </Card>
 
-          {/* SAĞ: HARİTA */}
           <Card className="card map-section" style={{ height: "100%", padding: 0, overflow: "hidden", position: "relative" }}>
-             {/* Key prop'u değiştirmek bazen haritayı zorla resetlemek için kullanılır ama MapHandler daha performanslıdır */}
              <MapContainer center={[40.765, 29.940]} zoom={10} style={{ height: "100%", width: "100%" }}>
                 
-                {/* --- BURASI EKLENDİ: MapHandler --- */}
                 <MapHandler selectedCargo={selectedCargo} />
                 
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />

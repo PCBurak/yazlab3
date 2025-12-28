@@ -4,14 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import Input from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'; // useMapEvents eklendi
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import "../styles/theme.css";
 import "../styles/table.css";
 
-// Leaflet İkon Sorunu Çözümü
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -22,18 +21,13 @@ L.Icon.Default.mergeOptions({
 export default function StationManagement({ onLogout }) {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  // Haritadan seçim modu açık mı?
   const [isSelecting, setIsSelecting] = useState(false);
-
-  // Form Verileri
   const [formData, setFormData] = useState({
     name: "",
     latitude: "",
     longitude: ""
   });
 
-  // Sayfa açılınca istasyonları çek
   useEffect(() => {
     fetchStations();
   }, []);
@@ -48,7 +42,6 @@ export default function StationManagement({ onLogout }) {
     }
   };
 
-  // Yeni istasyon ekle
   const handleSave = async () => {
     if (!formData.name || !formData.latitude || !formData.longitude) {
       alert("Lütfen tüm alanları doldurun.");
@@ -80,7 +73,6 @@ export default function StationManagement({ onLogout }) {
     setLoading(false);
   };
 
-  // İstasyon sil
   const handleDelete = async (id) => {
     if (!window.confirm("Bu istasyonu silmek istediğinize emin misiniz?")) return;
 
@@ -98,19 +90,15 @@ export default function StationManagement({ onLogout }) {
     }
   };
 
-  // --- HARİTA TIKLAMA YÖNETİCİSİ ---
-  // Bu bileşen harita içinde çalışır ve tıklamaları dinler
   const MapClickHandler = () => {
     useMapEvents({
       click: (e) => {
-        // Sadece seçim modu aktifse çalışır
         if (isSelecting) {
           setFormData((prev) => ({
             ...prev,
-            latitude: e.latlng.lat.toFixed(6), // Hassasiyeti ayarladık
+            latitude: e.latlng.lat.toFixed(6),
             longitude: e.latlng.lng.toFixed(6)
           }));
-          // Seçim yapıldıktan sonra modu otomatik kapat (İsteğe bağlı, kullanıcı dostu olması için)
           setIsSelecting(false);
         }
       },
@@ -138,24 +126,20 @@ export default function StationManagement({ onLogout }) {
           </div>
         </header>
 
-        {/* ÜST KISIM: HARİTA GÖRÜNÜMÜ */}
         <div 
             className="card map-section" 
             style={{ 
                 height: "400px", 
                 marginBottom: "24px", 
                 overflow: "hidden",
-                // Seçim modu açıksa imleci değiştir
                 cursor: isSelecting ? "crosshair" : "grab" 
             }}
         >
              <MapContainer center={[40.765, 29.940]} zoom={10} style={{ height: "100%", width: "100%" }}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 
-                {/* Tıklama Olaylarını Dinleyen Bileşen */}
                 <MapClickHandler />
 
-                {/* Kayıtlı İstasyonları Göster */}
                 {stations.map((s) => (
                   <Marker key={s.id} position={[s.latitude, s.longitude]}>
                     <Popup>
@@ -165,7 +149,6 @@ export default function StationManagement({ onLogout }) {
                   </Marker>
                 ))}
 
-                {/* Geçici Seçim İşaretçisi (Kullanıcı haritadan seçtiğinde orada bir marker çıksın) */}
                 {formData.latitude && formData.longitude && (
                     <Marker position={[formData.latitude, formData.longitude]} opacity={0.6}>
                         <Popup>Yeni Seçilen Konum</Popup>
@@ -173,7 +156,6 @@ export default function StationManagement({ onLogout }) {
                 )}
              </MapContainer>
              
-             {/* Seçim Modu Bilgilendirmesi (Harita üzerinde overlay) */}
              {isSelecting && (
                  <div style={{
                      position: "absolute", 
@@ -193,10 +175,8 @@ export default function StationManagement({ onLogout }) {
              )}
         </div>
 
-        {/* ALT KISIM: EKLEME FORMU VE LİSTE */}
         <div className="dashboard-grid admin-station-grid">
           
-          {/* ➕ YENİ İSTASYON EKLEME FORMU */}
           <Card className="card">
             <CardHeader>
               <CardTitle>
@@ -216,14 +196,13 @@ export default function StationManagement({ onLogout }) {
                 />
               </div>
 
-              {/* HARİTA SEÇİM BUTONU */}
               <div style={{ margin: "20px 0", textAlign: "center" }}>
                   <Button 
                     type="button"
                     onClick={() => setIsSelecting(!isSelecting)}
                     style={{
                         width: "100%",
-                        background: isSelecting ? "#dc2626" : "#4f46e5", // Kırmızı (İptal) veya Mavi (Seç)
+                        background: isSelecting ? "#dc2626" : "#4f46e5",
                         color: "white"
                     }}
                   >
@@ -249,7 +228,6 @@ export default function StationManagement({ onLogout }) {
                   className="modern-input"
                   value={formData.latitude}
                   onChange={(e) => setFormData({...formData, latitude: e.target.value})}
-                  // Kullanıcı isterse elle de girebilir, o yüzden readOnly yapmadık ama tercih edersen yapabilirsin
                 />
               </div>
 
@@ -276,7 +254,6 @@ export default function StationManagement({ onLogout }) {
             </CardContent>
           </Card>
 
-          {/* 📊 İSTASYON LİSTESİ TABLOSU */}
           <Card className="card table-section">
             <CardHeader>
               <CardTitle>

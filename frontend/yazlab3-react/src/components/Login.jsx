@@ -22,7 +22,6 @@ function Login({ onLogin }) {
 
       const userData = await response.json();
       
-      // Update App State & Storage
       onLogin(userData);
 
     } catch (err) {
@@ -42,7 +41,7 @@ function Login({ onLogin }) {
           <div className="form-group">
             <label style={{ fontWeight: 500 }}>Kullanıcı Adı</label>
             <input 
-              className="modern-select" // Reusing input style
+              className="modern-select"
               value={username} 
               onChange={(e) => setUsername(e.target.value)} 
               required

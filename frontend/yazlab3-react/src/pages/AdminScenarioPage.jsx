@@ -5,7 +5,6 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import "../styles/theme.css";
 
-// --- Leaflet Icon Fix ---
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -19,12 +18,10 @@ export default function AdminScenarioPage({ onLogout }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   
-  // Input States
   const [scenarioId, setScenarioId] = useState(1);
   const [mode, setMode] = useState("unlimited");
   const [strategy, setStrategy] = useState(0);
 
-  // UI States
   const [activeTab, setActiveTab] = useState("map");
   const [expandedVehicleId, setExpandedVehicleId] = useState(null);
   const [selectedCargo, setSelectedCargo] = useState(null);
@@ -79,15 +76,12 @@ export default function AdminScenarioPage({ onLogout }) {
     setLoading(false);
   }
 
-
-  // Statistics
   const routes = Array.isArray(result) ? result : (result?.routes || []);
   const rejected = result?.rejectedCargos || [];
   const totalCost = routes.reduce((acc, r) => acc + r.totalCost, 0);
   const totalVehicles = routes.length;
   const totalRejectedWeight = rejected.reduce((acc, r) => acc + r.weight, 0);
 
-  // Styles
   const getBigCardStyle = (isSelected) => ({
     flex: 1, padding: "20px", borderRadius: "12px",
     border: isSelected ? "2px solid #4f46e5" : "1px solid #e2e8f0",
@@ -112,10 +106,8 @@ export default function AdminScenarioPage({ onLogout }) {
           </div>
         </header>
 
-        {/* --- CONTROL PANEL --- */}
         <div className="card" style={{ marginBottom: "20px", padding: "30px" }}>
             
-            {/* 1. SCENARIO SELECTION */}
             <div style={{marginBottom: "25px"}}>
                 <label style={{display:"block", marginBottom: 8, fontWeight: 600, color: "#334155"}}>Test Senaryosu Seçin:</label>
                 <select 
@@ -133,7 +125,6 @@ export default function AdminScenarioPage({ onLogout }) {
 
             <div style={{height: "1px", background: "#e2e8f0", margin: "20px 0"}}></div>
 
-            {/* 2. MODE SELECTION (From RoutePlanning) */}
             <h3 style={{fontSize: "16px", color: "#64748b", marginBottom: "15px"}}>
                 <i className="fas fa-sliders-h" style={{marginRight: 8}}></i> Araç Yapılandırması
             </h3>
@@ -156,7 +147,6 @@ export default function AdminScenarioPage({ onLogout }) {
                     </div>
                     {mode === "fixed" && <i className="fas fa-check-circle" style={{position:"absolute", top:10, right:10, color:"#4f46e5", fontSize:"18px"}}></i>}
                     
-                    {/* Strategy Expansion */}
                     {mode === "fixed" && (
                         <div style={{ marginTop: "15px", width: "100%", animation: "fadeIn 0.4s ease" }}>
                             <div style={{height: "1px", background: "#cbd5e1", marginBottom: "10px"}}></div>
@@ -176,11 +166,9 @@ export default function AdminScenarioPage({ onLogout }) {
             </div>
         </div>
 
-        {/* --- RESULT SECTION (Uses the Fixed Z-Index Layout) --- */}
         {result && (
           <div className="card" style={{ padding: 0, overflow: "hidden", height: "600px", display: "flex", flexDirection: "column", position: "relative", isolation: "isolate" }}>
             
-            {/* TABS (Top Layer) */}
             <div style={{ flex: "0 0 auto", background: "white", zIndex: 20, position: "relative", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", borderBottom: "1px solid #e2e8f0" }}>
                 <button onClick={() => setActiveTab("map")} style={{ flex: 1, padding: "18px", border: "none", background: "transparent", borderBottom: activeTab === "map" ? "3px solid #4f46e5" : "3px solid transparent", color: activeTab === "map" ? "#4f46e5" : "#94a3b8", fontWeight: activeTab === "map" ? "700" : "500", fontSize: "15px", cursor: "pointer", transition: "all 0.2s" }}>
@@ -200,10 +188,8 @@ export default function AdminScenarioPage({ onLogout }) {
               )}
             </div>
 
-            {/* CONTENT (Bottom Layer) */}
             <div style={{ flex: "1 1 auto", position: "relative", zIndex: 1, overflowY: activeTab === "details" ? "auto" : "hidden" }}>
               
-              {/* MAP */}
               {activeTab === "map" && (
                 <MapContainer center={[40.765, 29.940]} zoom={10} style={{ height: "100%", width: "100%", zIndex: 0 }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -220,7 +206,6 @@ export default function AdminScenarioPage({ onLogout }) {
                 </MapContainer>
               )}
 
-              {/* DETAILS */}
               {activeTab === "details" && (
                 <div style={{ padding: "20px", background: "#f8fafc" }}>
                   <div style={{ marginBottom: 20, display: "flex", gap: 15 }}>
@@ -287,8 +272,6 @@ export default function AdminScenarioPage({ onLogout }) {
             </div>
           </div>
         )}
-
-        {/* --- MODAL --- */}
         {selectedCargo && (
           <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 10000 }}>
             <div className="card" style={{ width: "400px", padding: "30px", position: "relative", animation: "slideDown 0.3s" }}>

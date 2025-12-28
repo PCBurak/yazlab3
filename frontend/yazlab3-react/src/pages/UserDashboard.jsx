@@ -8,7 +8,6 @@ export default function UserDashboard({ user, onLogout }) {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ total: 0, active: 0, totalWeight: 0 });
 
-  // İstatistikleri Çek
   useEffect(() => {
     if (user) {
       fetch(`http://localhost:5014/api/cargo/my-requests/${user.id}`)
@@ -43,8 +42,6 @@ export default function UserDashboard({ user, onLogout }) {
             <p className="subtitle">Kargo operasyonlarınızın genel durumu.</p>
           </div>
         </header>
-
-        {/* İSTATİSTİK KARTLARI */}
         <div className="stats-grid">
             <Card className="stat-card">
                 <div className="p-4">
@@ -77,7 +74,6 @@ export default function UserDashboard({ user, onLogout }) {
             </Card>
         </div>
 
-        {/* HIZLI AKSİYONLAR */}
         <div style={{ marginTop: "30px" }}>
             <h3>Hızlı İşlemler</h3>
             <div className="dashboard-grid" style={{ gridTemplateColumns: "1fr 1fr", marginTop: "15px" }}>

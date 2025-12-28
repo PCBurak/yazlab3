@@ -12,26 +12,22 @@ import { Label } from "../components/ui/label";
 import "../styles/theme.css";
 
 export default function CargoSend({ user, onLogout }) {
-  // --- STATE ---
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Form Verileri
   const [formData, setFormData] = useState({
-    stationId: "", // Çıkış İstasyonu
-    destinationStationId: "", // Varış İstasyonu (Artık Dinamik)
+    stationId: "",
+    destinationStationId: "",
     weight: "",
     cargoType: "Standart Koli",
     receiverName: "",
   });
 
-  // 1. İstasyonları Veritabanından Çek
   useEffect(() => {
     fetch("http://localhost:5014/api/cargo/stations")
       .then((res) => res.json())
       .then((data) => {
         setStations(data);
-        // İlk iki istasyonu varsayılan olarak seç
         if (data.length > 0) {
           setFormData((prev) => ({
             ...prev,
@@ -43,18 +39,15 @@ export default function CargoSend({ user, onLogout }) {
       .catch((err) => console.error("İstasyonlar yüklenemedi:", err));
   }, []);
 
-  // Input değişimi
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Form Gönderimi
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // ✅ KONTROL: Çıkış ve Varış aynı olamaz
     if (formData.stationId === formData.destinationStationId) {
       alert("Hata: Çıkış ve varış istasyonu aynı olamaz!");
       setLoading(false);
@@ -63,11 +56,10 @@ export default function CargoSend({ user, onLogout }) {
 
     const currentUser = JSON.parse(localStorage.getItem("user"));
 
-    // Backend'e gidecek tam paket
     const payload = {
       userId: currentUser ? currentUser.id : 0,
       stationId: Number(formData.stationId),
-      destinationStationId: Number(formData.destinationStationId), // Dinamik ID
+      destinationStationId: Number(formData.destinationStationId),
       weight: Number(formData.weight),
       cargoType: formData.cargoType,
       receiverName: formData.receiverName,
@@ -82,7 +74,6 @@ export default function CargoSend({ user, onLogout }) {
 
       if (response.ok) {
         alert("✅ Kargo talebiniz başarıyla alındı!");
-        // Formu kısmen temizle
         setFormData({ ...formData, weight: "", receiverName: "" });
       } else {
         const errData = await response.json();
@@ -94,7 +85,6 @@ export default function CargoSend({ user, onLogout }) {
     setLoading(false);
   };
 
-  // Tahmini Maliyet (Görsel Hesaplama)
   const estimatedCost = formData.weight
     ? (formData.weight * 5.5).toFixed(2)
     : "0.00";
@@ -132,7 +122,6 @@ export default function CargoSend({ user, onLogout }) {
             </CardHeader>
             <CardContent>
               <form className="cargo-form" onSubmit={handleSubmit}>
-                {/* İSTASYON SEÇİMLERİ */}
                 <div className="form-grid-three">
                   <div className="form-group">
                     <Label>Çıkış İstasyonu</Label>
@@ -181,7 +170,6 @@ export default function CargoSend({ user, onLogout }) {
                   </div>
                 </div>
 
-                {/* DİĞER BİLGİLER */}
                 <div className="form-grid-two" style={{ marginTop: "20px" }}>
                   <div className="form-group">
                     <Label>Kargo Tipi</Label>
@@ -212,7 +200,6 @@ export default function CargoSend({ user, onLogout }) {
                   </div>
                 </div>
 
-                {/* FOOTER & FİYAT */}
                 <div
                   className="form-footer"
                   style={{

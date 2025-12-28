@@ -23,7 +23,7 @@ export default function Login({ onLogin }) {
       if (!response.ok) throw new Error("Giriş başarısız.");
 
       const userData = await response.json();
-      onLogin(userData); // Update App State
+      onLogin(userData);
     } catch (err) {
       setError("Kullanıcı adı veya şifre hatalı.");
     }
@@ -31,7 +31,6 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-wrapper">
-      {/* Dekoratif Arka Plan */}
       <div className="bg-decoration top-left"></div>
       <div className="bg-decoration bottom-right"></div>
 
@@ -45,7 +44,6 @@ export default function Login({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* USERNAME */}
           <div className="modern-field">
             <label>Kullanıcı Adı</label>
             <div className="input-with-icon">
@@ -60,7 +58,6 @@ export default function Login({ onLogin }) {
             </div>
           </div>
 
-          {/* PASSWORD */}
           <div className="modern-field">
             <label>Şifre</label>
             <div className="input-with-icon">
@@ -81,14 +78,12 @@ export default function Login({ onLogin }) {
             </div>
           </div>
 
-          {/* ERROR */}
           {error && (
             <div className="error-message">
               <i className="fa-solid fa-circle-exclamation"></i> {error}
             </div>
           )}
 
-          {/* SUBMIT */}
           <button className="modern-login-btn">
             <span>Sisteme Bağlan</span>
             <i className="fa-solid fa-arrow-right"></i>

@@ -20,7 +20,6 @@ export default function Settings({ onLogout }) {
         if (storedUser)
           setAdminName(JSON.parse(storedUser).username || "Admin");
 
-        // 2. Ayarları çek
         const sRes = await fetch("http://localhost:5014/api/settings");
         if (!sRes.ok) {
           const err = await sRes.text();
@@ -32,13 +31,11 @@ export default function Settings({ onLogout }) {
           sObj[item.key] = item.value;
         });
 
-        // ✅ ÖNEMLİ: defaultları ezmeyelim (eksik key gelirse state bozulmasın)
         setSettings((prev) => ({
           ...prev,
           ...sObj,
         }));
 
-        // 3. Araçları çek
         const vRes = await fetch("http://localhost:5014/api/settings/vehicles");
         if (!vRes.ok) {
           const err = await vRes.text();
@@ -70,7 +67,6 @@ export default function Settings({ onLogout }) {
     setSaving(true);
 
     try {
-      // Ayarları kaydet
       const settingsPayload = Object.keys(settings).map((key) => ({
         key,
         value: settings[key]?.toString() ?? "",
@@ -82,13 +78,11 @@ export default function Settings({ onLogout }) {
         body: JSON.stringify(settingsPayload),
       });
 
-      // ✅ KRİTİK: fetch 400/500'de throw etmez → ok kontrol et
       if (!sSaveRes.ok) {
         const err = await sSaveRes.text();
         throw new Error("Ayarlar kaydedilemedi: " + err);
       }
 
-      // Araçları kaydet
       const vSaveRes = await fetch(
         "http://localhost:5014/api/settings/update-vehicles",
         {

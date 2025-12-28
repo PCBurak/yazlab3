@@ -60,7 +60,6 @@ export default function Register() {
         </div>
 
         <form onSubmit={onSubmit}>
-          {/* USERNAME */}
           <div className="modern-field">
             <label>Kullanıcı Adı</label>
             <div className="input-with-icon">
@@ -75,7 +74,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* GRID: PASSWORD & ROLE */}
           <div className="form-grid-two">
             <div className="modern-field">
               <label>Şifre</label>
@@ -98,7 +96,6 @@ export default function Register() {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  // Uses the same CSS as input thanks to the update in login.css
                 >
                   <option value="User">User</option>
                   <option value="Admin">Admin</option>
@@ -107,7 +104,6 @@ export default function Register() {
             </div>
           </div>
 
-          {/* MESSAGES */}
           {error && (
             <div className="error-message">
               <i className="fa-solid fa-circle-exclamation"></i> {error}
@@ -119,7 +115,6 @@ export default function Register() {
             </div>
           )}
 
-          {/* BUTTON */}
           <button className="modern-login-btn" disabled={!canSubmit} style={{background: "#10b981"}}>
             <span>Kayıt Ol</span>
             <i className="fa-solid fa-user-check"></i>

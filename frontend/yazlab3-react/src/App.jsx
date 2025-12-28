@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import Settings from "./pages/Settings";
-// --- IMPORT PAGES ---
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -13,13 +12,11 @@ import CargoTracking from "./pages/CargoTracking";
 import StationCargos from "./pages/StationCargos";
 import AdminScenarioPage from "./pages/AdminScenarioPage";
 
-// import StationManagement from "./pages/StationManagement"; // Admin için gerekirse bunu da açabilirsin
 
 function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // 1. Check LocalStorage on Load
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -27,7 +24,6 @@ function App() {
     }
   }, []);
 
-  // 2. Handle Login
   const handleLogin = (userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
@@ -35,7 +31,6 @@ function App() {
     else navigate("/user");
   };
 
-  // 3. Handle Logout
   const handleLogout = () => {
     localStorage.removeItem("user");
     setUser(null);
@@ -44,8 +39,6 @@ function App() {
 
   return (
     <Routes>
-      {/* --- PUBLIC ROUTES --- */}
-      {/* Login Page */}
       <Route
         path="/"
         element={
@@ -56,7 +49,6 @@ function App() {
           )
         }
       />
-      {/* Register Page */}
       <Route
         path="/register"
         element={
@@ -67,8 +59,6 @@ function App() {
           )
         }
       />
-      {/* --- PROTECTED ROUTES --- */}
-      {/* Admin Dashboard */}
       <Route
         path="/admin"
         element={
@@ -79,7 +69,6 @@ function App() {
           )
         }
       />
-      {/* User Dashboard (Ana Panel) */}
       <Route
         path="/user"
         element={
@@ -90,7 +79,6 @@ function App() {
           )
         }
       />
-      {/* User Cargo Send (Kargo Gönder Sayfası) - YENİ EKLENDİ */}
       <Route
         path="/user/send"
         element={
@@ -161,7 +149,6 @@ function App() {
           )
         }
       />{" "}
-      {/* <-- Bu kapatma etiketi eksikti, ekledik */}
     </Routes>
   );
 }
